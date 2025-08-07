@@ -6,7 +6,10 @@ export default function HomeScreen() {
 
   const callFastAPI = async () => {
     try {
+
       const res = await fetch('http://192.168.219.120:8000/chat?q=테스트'); // ← 너 IP로 바꿔줘!
+
+
       const json = await res.json();
       setResponse(json.answer);
     } catch (error) {
