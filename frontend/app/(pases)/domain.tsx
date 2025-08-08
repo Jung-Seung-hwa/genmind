@@ -17,6 +17,10 @@ export default function DomainScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  const handleNext = () => {
+    router.push("/login");
+  };
+
   const handleSubmit = async () => {
     if (!domain.trim()) {
       Alert.alert("오류", "도메인을 입력해주세요.");
@@ -58,14 +62,14 @@ export default function DomainScreen() {
             </View>
           </View>
           <Text style={styles.title}>Genmind Chatbot</Text>
-          <Text style={styles.subtitle}>중소기업용 문서 자동응답 서비스</Text>
+          <Text style={styles.subtitle}>중소기업 맞춤 자동응답 서비스</Text>
         </View>
 
         {/* 입력폼 */}
         <View style={styles.form}>
           <Text style={styles.formTitle}>도메인 입력</Text>
           <Text style={styles.formSubtitle}>
-            조직의 도메인 또는 회사명을 입력하세요
+            조직 도메인 입력해 주세요.
           </Text>
 
           <TextInput
@@ -77,7 +81,7 @@ export default function DomainScreen() {
             keyboardType="default"
           />
           <Text style={styles.inputHint}>
-            예: company.com 또는 회사명
+            예: company.com
           </Text>
 
           <TouchableOpacity
