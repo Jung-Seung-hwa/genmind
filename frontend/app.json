@@ -12,11 +12,9 @@
       "supportsTablet": true
     },
     "android": {
-      
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-        
       },
       "edgeToEdgeEnabled": true
     },
@@ -39,6 +37,10 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "API_BASE": "http://192.168.219.120:3000",
+      "FASTAPI_BASE": "http://192.168.219.120:8000"
     }
   }
 }
