@@ -35,6 +35,7 @@ export default function HomeScreen() {
     );
   }, []);
 
+  // 중복 선언 제거
   const router = useRouter();
   return (
     <SafeAreaView style={s.safe}>
@@ -100,13 +101,18 @@ export default function HomeScreen() {
 
         {/* 자주 묻는 질문 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>Q. 자주 묻는 질문</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.cardTitle}>Q. 자주 묻는 질문</Text>
+            <TouchableOpacity style={s.faqGoBtn} onPress={() => router.replace('/faq')} activeOpacity={0.7}>
+              <Text style={s.faqGoBtnTxt}>{'>'}</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ marginTop: 8 }}>
             {faqs.map((q, i) => (
-              <TouchableOpacity key={i} style={s.faqRow} activeOpacity={0.9}>
+              <View key={i} style={s.faqRow}>
                 <Text style={s.faqQ}>Q.</Text>
                 <Text style={s.faqText} numberOfLines={1}>{q}</Text>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
         </View>
@@ -118,6 +124,35 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#eaf2ff" },
   container: {
+  faqGoBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#e0e7ef',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // ...기존 스타일 정의...
+  faqGoBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#e0e7ef',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  faqGoBtnTxt: {
+    fontSize: 18,
+    color: '#2563eb',
+    fontWeight: 'bold',
+  },
+  faqGoBtnTxt: {
+    fontSize: 18,
+    color: '#2563eb',
+    fontWeight: 'bold',
+  },
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 24,
