@@ -17,6 +17,7 @@ export default function HomeScreen() {
     { id: 2, text: "회의 자료 준비하기", done: true },
     { id: 3, text: "점심 약속 확인하기", done: false, due: "2025-08-12" },
     { id: 4, text: "프로젝트 리뷰하기", done: false },
+    { id: 5, text: "주간 보고서 작성하기", done: false },
   ]);
 
   const faqs = useMemo(
@@ -25,6 +26,7 @@ export default function HomeScreen() {
       "계정 설정을 변경하려면?",
       "알림 설정은 어떻게 하나요?",
       "데이터 백업은 어떻게 하나요?",
+      "dddd"
     ],
     []
   );
@@ -94,9 +96,7 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={s.secondaryBtn}>
-            <Text style={s.secondaryBtnTxt}>세부 진도선 따르기</Text>
-          </TouchableOpacity>
+          
         </View>
 
         {/* 자주 묻는 질문 */}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
+import { Image } from "react-native";
 import {
   View,
   Text,
@@ -33,15 +34,10 @@ export default function DomainScreen() {
       <View style={styles.container}>
         {/* 로고 */}
         <View style={styles.logoContainer}>
-          <View style={styles.logoOuter}>
-            <View style={styles.logoMid}>
-              <View style={styles.logoInner}>
-                <View style={styles.logoDotLarge} />
-                <View style={styles.logoDotMedium} />
-                <View style={styles.logoDotSmall} />
-              </View>
-            </View>
-          </View>
+          <Image
+              source={require("../../app/images/Chat.png")}
+              style={{ width: 120, height: 120, marginBottom: 14, resizeMode: 'contain' }}
+          />
           <Text style={styles.title}>Genmind Chatbot</Text>
           <Text style={styles.subtitle}>중소기업 맞춤 자동응답 서비스</Text>
         </View>

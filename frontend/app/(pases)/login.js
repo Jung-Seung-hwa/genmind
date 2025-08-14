@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
+import { Image } from "react-native";
 import {
   View,
   Text,
@@ -46,15 +47,10 @@ export default function LoginScreen() {
       <View style={styles.container}>
         {/* 로고/타이틀 */}
         <View style={styles.logoWrap}>
-          <View style={styles.logoOuter}>
-            <View style={styles.logoMid}>
-              <View style={styles.logoInner}>
-                <View style={styles.dotLg} />
-                <View style={styles.dotMd} />
-                <View style={styles.dotSm} />
-              </View>
-            </View>
-          </View>
+          <Image
+            source={require("../../app/images/Chat.png")}
+            style={{ width: 120, height: 120, marginBottom: 14, resizeMode: 'contain' }}
+          />
           <Text style={styles.appTitle}>Genmind Chatbot</Text>
           <Text style={styles.appSubtitle}>중소기업 맞춤 자동응답 서비스</Text>
         </View>
