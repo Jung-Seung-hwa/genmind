@@ -34,7 +34,9 @@ export default function LoginScreen() {
     }, 800);
   };
 
-  const handleSignupPress = () => Alert.alert("회원가입", "MVP: 추후 연결 예정");
+  const handleSignupPress = () => {
+    router.replace("/join");
+  };
   const handleChangeDomain = () => {
     router.replace("/domain");
   };
