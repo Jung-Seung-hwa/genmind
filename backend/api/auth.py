@@ -87,3 +87,46 @@ def join(payload: JoinIn, db: Session = Depends(get_db)):
         user_type=role,
         message="가입 완료",
     )
+    
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+class LoginOut(BaseModel):
+    ok: bool
+    email: EmailStr
+    name: str
+    user_type: str
+    comp_idx: int
+
+@router.post("/login", response_model=LoginOut, status_code=200)
+def login(payload: LoginIn, db: Session = Depends(get_db)):
+    # 1) 사용자 조회
+    user = db.query(UserModel).filter(UserModel.email == payload.email).first()
+    if not user:
+        # 이메일 존재 안함
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+
+    # 2) 비밀번호 검증 (bcrypt)
+    try:
+        ok = pwd_ctx.verify(payload.password, user.passwd)
+    except Exception:
+        # 해시 포맷이 예상과 다를 때 대비
+        raise HTTPException(status_code=500, detail="비밀번호 검증 중 오류가 발생했습니다.")
+
+    if not ok:
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+
+    # (선택) 해시 업그레이드가 필요하면 재해시
+    if pwd_ctx.needs_update(user.passwd):
+        user.passwd = pwd_ctx.hash(payload.password)
+        db.commit()
+
+    # 3) 성공 응답 (필요 시 토큰 추가 가능)
+    return LoginOut(
+        ok=True,
+        email=user.email,
+        name=user.name,
+        user_type=user.user_type,
+        comp_idx=user.comp_idx,
+    )
