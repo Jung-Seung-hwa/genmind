@@ -22,29 +22,87 @@ export default function JoinScreen() {
   const horizontalPad = Math.max(16, Math.min(24, Math.round(width * 0.06)));
 
   // 폼 상태
-  const [invite, setInvite] = useState("");
-  const [empNo, setEmpNo] = useState("");
-  const [mgrNo, setMgrNo] = useState("");
+  const [invite, setInvite] = useState("");   // 회사 시리얼(= comp_idx)
+  const [name, setName] = useState("");
+  const [position, setPosition] = useState(""); // 사용자 유형(user_type)
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = () => {
-    if (!invite.trim()) return Alert.alert("확인", "초대 링크를 입력해주세요.");
-    if (!empNo.trim()) return Alert.alert("확인", "사번을 입력해주세요.");
-    if (!mgrNo.trim()) return Alert.alert("확인", "사번관리번호를 입력해주세요.");
+  const BASE_URL = Platform.select({
+    android: "http://10.0.2.2:8000",  // Android 에뮬레이터 → PC 로컬
+    ios: "http://localhost:8000",     // iOS 시뮬레이터
+    default: "http://localhost:8000", // Web/기타
+  });
+  const JOIN_URL = `${BASE_URL}/auth/join`; // 라우트 프리픽스가 있으면 바꿔: 예) /api/auth/join
+
+  const onSubmit = async () => {
+    if (!invite.trim()) return Alert.alert("확인", "회사 시리얼 넘버를 입력해주세요.");
+    if (!name.trim()) return Alert.alert("확인", "이름을 입력해주세요.");
+    if (!position.trim()) return Alert.alert("확인", "직책(사용자 유형)을 입력해주세요.");
     if (!email.trim() || !email.includes("@"))
       return Alert.alert("확인", "유효한 이메일을 입력해주세요.");
     if (!pw.trim() || pw.length < 6)
       return Alert.alert("확인", "비밀번호는 6자 이상 입력해주세요.");
     if (pw !== pw2) return Alert.alert("확인", "비밀번호 확인이 일치하지 않습니다.");
 
-    setLoading(true);
-    setTimeout(() => {
+    try {
+      setLoading(true);
+
+      // 타임아웃 + 디버깅 로그
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+
+      // position → user_type, serial → comp_idx(서버에서 매핑)
+      const payload = {
+        serial: invite,     // 서버에서 comp_idx(FK)로 해석/매핑
+        email,              // PK
+        name,
+        password: pw,       // 백엔드에서 passwd 컬럼으로 저장
+        user_type: position // 사용자 유형
+      };
+
+      console.log("POST", JOIN_URL, payload);
+
+      const res = await fetch(JOIN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+
+      // 응답 파싱(텍스트 폴백 포함)
+      let data = {};
+      const text = await res.text();
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) {
+        const msg =
+          data?.detail ||
+          data?.message ||
+          (res.status === 404
+            ? "회사 시리얼 넘버를 찾을 수 없습니다."
+            : res.status === 409
+            ? "이미 가입된 이메일입니다."
+            : res.status === 422
+            ? "입력값이 올바르지 않습니다."
+            : `HTTP ${res.status}`);
+        return Alert.alert("오류", String(msg));
+      }
+
+      Alert.alert("완료", "가입 신청이 접수되었습니다.");
+      // 필요하면 여기서 폼 초기화/네비게이션 처리
+    } catch (e) {
+      console.error("join error:", e);
+      Alert.alert(
+        "네트워크 오류",
+        e.name === "AbortError" ? "요청이 시간초과되었습니다." : "서버에 연결할 수 없습니다."
+      );
+    } finally {
       setLoading(false);
-      Alert.alert("가입 요청", "제출 완료! (백엔드 연결 전)");
-    }, 700);
+    }
   };
 
   return (
@@ -74,32 +132,37 @@ export default function JoinScreen() {
           <View style={[s.card, { maxWidth: CONTENT_MAX, alignSelf: "center" }]}>
             <Text style={s.title}>회원가입</Text>
 
-            {/* 초대 링크 */}
-            <Text style={s.label}>초대 링크</Text>
+            {/* 시리얼 넘버 */}
+            <Text style={s.label}>시리얼 넘버</Text>
             <TextInput
               style={s.input}
-              placeholder="초대 링크를 입력하세요"
+              placeholder="시리얼 넘버를 입력하세요"
               value={invite}
               onChangeText={setInvite}
               autoCapitalize="none"
             />
 
-            {/* 사번/사번관리번호 – 2열, 작은 폭에서는 자동 줄바꿈 없이 동일 비율 */}
-            <Text style={[s.label, { marginTop: 14 }]}>사번</Text>
+            {/* 이름 */}
+            <Text style={[s.label, { marginTop: 14 }]}>이름</Text>
             <View style={s.row2}>
               <TextInput
                 style={[s.input, s.half]}
-                placeholder="EMP001"
-                value={empNo}
-                onChangeText={setEmpNo}
-                autoCapitalize="characters"
+                placeholder="홍길동"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="none"
               />
+            </View>
+
+            {/* 직책(= user_type) */}
+            <Text style={[s.label, { marginTop: 14 }]}>직책 (사용자 유형)</Text>
+            <View style={s.row2}>
               <TextInput
                 style={[s.input, s.half]}
-                placeholder="MG001"
-                value={mgrNo}
-                onChangeText={setMgrNo}
-                autoCapitalize="characters"
+                placeholder="예) user, manager, admin"
+                value={position}
+                onChangeText={setPosition}
+                autoCapitalize="none"
               />
             </View>
 

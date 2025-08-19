@@ -10,6 +10,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 from db.session import Base, engine
 from models import company, user, document, gpt, unanswered  # 테이블 정의 파일
 from api import chat  # 기존 라우터
+from api import auth
 
 app = FastAPI()
 
@@ -27,6 +28,7 @@ Base.metadata.create_all(bind=engine)
 
 # 라우터 등록
 app.include_router(chat.router)
+app.include_router(auth.router) 
 
 @app.get("/")
 def root():
