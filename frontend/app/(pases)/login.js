@@ -1,3 +1,4 @@
+// app/(page)/login.js
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
 import { Image } from "react-native";
@@ -12,34 +13,101 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import Constants from "expo-constants";
 
-// 디자인 전용: 라우팅/스토리지/인증 로직 제거한 순수 UI 버전
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [domain, setDomain] = useState(""); // 디자인 미리보기용 표시
+  const [domain, setDomain] = useState(""); // 디자인 미리보기용
   const [isLoading, setIsLoading] = useState(false);
-
   const router = useRouter();
 
-  const handleLoginPress = () => {
+  // ---- BASE_URL 자동 감지 (Expo Go 실기기/에뮬/시뮬/웹 모두 커버) ----
+  const deriveLanBase = () => {
+    const sources = [
+      Constants?.expoConfig?.hostUri,
+      Constants?.expoGoConfig?.hostUri,
+      Constants?.manifest?.debuggerHost, // 구버전 호환
+    ].filter(Boolean);
+
+    for (const s of sources) {
+      const host = String(s).split(":")[0]; // "192.168.x.x"
+      const isPrivateIPv4 =
+        /^(10\.\d+\.\d+\.\d+)$/.test(host) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(host) ||
+        /^192\.168\.\d+\.\d+$/.test(host);
+      if (isPrivateIPv4) return `http://${host}:8000`;
+    }
+    return null;
+  };
+
+  const AUTO_LAN_URL = deriveLanBase();
+  const BASE_URL =
+    AUTO_LAN_URL ||
+    (Platform.OS === "android"
+      ? "http://10.0.2.2:8000"      // Android 에뮬레이터
+      : Platform.OS === "ios"
+      ? "http://127.0.0.1:8000"     // iOS 시뮬레이터
+      : "http://localhost:8000");   // Web/기타
+
+  const LOGIN_URL = `${BASE_URL}/auth/login`;
+
+  const fetchWithTimeout = (url, opts = {}, timeoutMs = 8000) => {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
+  };
+
+  const handleLoginPress = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("오류", "이메일과 비밀번호를 모두 입력해주세요.");
       return;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+
+    try {
+      setIsLoading(true);
+
+      const res = await fetchWithTimeout(
+        LOGIN_URL,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        },
+        10000
+      );
+
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) {
+        const msg =
+          data?.detail ||
+          data?.message ||
+          (res.status === 401
+            ? "이메일 또는 비밀번호가 올바르지 않습니다."
+            : `HTTP ${res.status}`);
+        return Alert.alert("로그인 실패", String(msg));
+      }
+
+      // 성공 처리: 필요 시 토큰 보관 (백엔드가 token을 반환한다면)
+      // if (data?.token) { await AsyncStorage.setItem("token", data.token); }
+
       router.replace("/home");
-    }, 800);
+    } catch (e) {
+      console.error("login error:", e);
+      Alert.alert(
+        "네트워크 오류",
+        e.name === "AbortError" ? "요청이 시간초과되었습니다." : "서버에 연결할 수 없습니다."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSignupPress = () => {
-    router.replace("/join");
-  };
-  const handleChangeDomain = () => {
-    router.replace("/domain");
-  };
+  const handleSignupPress = () => router.replace("/join");
+  const handleChangeDomain = () => router.replace("/domain");
 
   return (
     <KeyboardAvoidingView
@@ -51,20 +119,22 @@ export default function LoginScreen() {
         <View style={styles.logoWrap}>
           <Image
             source={require("../../app/images/Chat.png")}
-            style={{ width: 120, height: 120, marginBottom: 14, resizeMode: 'contain' }}
+            style={{ width: 120, height: 120, marginBottom: 14, resizeMode: "contain" }}
           />
           <Text style={styles.appTitle}>Genmind Chatbot</Text>
           <Text style={styles.appSubtitle}>중소기업 맞춤 자동응답 서비스</Text>
+          {/* 개발 중 BASE_URL 확인용 */}
+          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>{BASE_URL}</Text>
         </View>
 
         {/* 카드 */}
-
         <View style={styles.card}>
           <Text style={styles.cardTitle}>로그인</Text>
-          {/* 도메인 입력값 항상 표시 */}
+
+          {/* 도메인 입력값 표시(미리보기) */}
           <View style={styles.domainRow}>
             <View style={styles.domainDot} />
-            <Text style={styles.domainText}>{domain || '도메인을 입력하세요'}</Text>
+            <Text style={styles.domainText}>{domain || "도메인을 입력하세요"}</Text>
           </View>
 
           <View style={styles.field}>
@@ -76,6 +146,8 @@ export default function LoginScreen() {
               placeholder="example@company.com"
               autoCapitalize="none"
               keyboardType="email-address"
+              returnKeyType="next"
+              onSubmitEditing={() => {}}
             />
           </View>
 
@@ -87,6 +159,8 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               placeholder="••••••••"
               secureTextEntry
+              returnKeyType="go"
+              onSubmitEditing={handleLoginPress}
             />
           </View>
 
@@ -130,18 +204,6 @@ const styles = StyleSheet.create({
 
   // 로고
   logoWrap: { alignItems: "center", marginBottom: 32 },
-  logoOuter: {
-    width: 64, height: 64, borderRadius: 16, backgroundColor: "#2563eb",
-    alignItems: "center", justifyContent: "center", marginBottom: 14,
-  },
-  logoMid: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: "#fff",
-    alignItems: "center", justifyContent: "center",
-  },
-  logoInner: { flexDirection: "row", alignItems: "center" },
-  dotLg: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#2563eb", marginRight: 4 },
-  dotMd: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#2563eb", marginRight: 4 },
-  dotSm: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#2563eb" },
   appTitle: { fontSize: 24, fontWeight: "700", color: "#0f172a" },
   appSubtitle: { fontSize: 13, color: "#475569", marginTop: 4 },
 
@@ -150,7 +212,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 20,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
   cardTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", textAlign: "center", marginBottom: 8 },
 
@@ -161,19 +226,33 @@ const styles = StyleSheet.create({
   field: { marginTop: 12 },
   label: { fontSize: 13, color: "#334155", marginBottom: 6 },
   input: {
-    height: 48, backgroundColor: "#f1f5f9", borderRadius: 8, paddingHorizontal: 12,
-    fontSize: 14, color: "#0f172a",
+    height: 48,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: "#0f172a",
   },
 
   primaryBtn: {
-    marginTop: 20, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center",
+    marginTop: 20,
+    height: 48,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#2563eb",
   },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 
   outlineBtn: {
-    marginTop: 10, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "#cbd5e1", backgroundColor: "#fff",
+    marginTop: 10,
+    height: 48,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#fff",
   },
   outlineBtnText: { color: "#334155", fontSize: 15, fontWeight: "600" },
 

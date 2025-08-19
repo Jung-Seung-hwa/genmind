@@ -9,6 +9,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Image,
 } from "react-native";
 
 export default function HomeScreen() {
@@ -39,6 +40,8 @@ export default function HomeScreen() {
 
   // 중복 선언 제거
   const router = useRouter();
+  // 사람 아이콘 토글 메뉴 상태
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
@@ -50,10 +53,28 @@ export default function HomeScreen() {
               <Text style={s.hello}>안녕하세요, 김OO님!</Text>
             </View>
             <View style={s.iconRow}>
-              <View style={s.iconBtn}><Text style={s.iconTxt}>🔔</Text></View>
-              <View style={s.iconBtn}><Text style={s.iconTxt}>⚙️</Text></View>
-              <View style={s.iconBtn}><Text style={s.iconTxt}>👤</Text></View>
+              <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
+                <Text style={s.iconTxt}>🔔</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.iconBtn}
+                activeOpacity={0.7}
+                onPress={() => setShowProfileMenu((v) => !v)}
+              >
+                <Text style={s.iconTxt}>👤</Text>
+              </TouchableOpacity>
             </View>
+            {/* 사람 아이콘 메뉴 */}
+            {showProfileMenu && (
+              <View style={s.profileMenuWrap}>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => {/* 개인정보수정 이동 */}}>
+                  <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => {/* 로그아웃 처리 */}}>
+                  <Text style={[s.profileMenuBtnTxt, { color: '#ef4444' }]}>로그아웃</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View style={s.tipCard}>
@@ -161,6 +182,31 @@ const s = StyleSheet.create({
 
   // Header
   headerWrap: { gap: 12 },
+  profileMenuWrap: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    paddingVertical: 4,
+    minWidth: 120,
+    zIndex: 10,
+  },
+  profileMenuBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: 'flex-start',
+  },
+  profileMenuBtnTxt: {
+    fontSize: 15,
+    color: '#2563eb',
+    fontWeight: '700',
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

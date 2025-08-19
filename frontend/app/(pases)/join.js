@@ -1,5 +1,6 @@
 // app/(page)/join.js
 import React, { useState } from "react";
+import { useRouter } from "expo-router";
 import {
   View,
   Text,
@@ -13,10 +14,12 @@ import {
   Alert,
   ActivityIndicator,
   useWindowDimensions,
+  Image,
 } from "react-native";
 import Constants from "expo-constants";
 
 export default function JoinScreen() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   // 작은 폰에서도 동일한 레이아웃 유지: 최대 폭 360, 좌우는 5~6% 마진
   const CONTENT_MAX = 360;
@@ -30,6 +33,12 @@ export default function JoinScreen() {
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [loading, setLoading] = useState(false);
+  // 에러 메시지 상태
+  const [serialError, setSerialError] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  // 이메일 형식 체크 (간단한 정규식)
+  const isEmailValid = email.includes("@") && /.+@.+\..+/.test(email);
 
   // ---- BASE_URL 자동 감지 (Expo Go 실기기/에뮬/시뮬/웹 모두 커버) ----
   const deriveLanBase = () => {
@@ -63,15 +72,22 @@ export default function JoinScreen() {
   const JOIN_URL = `${BASE_URL}/auth/join`; // 라우트 프리픽스가 있으면 바꿔: 예) /api/auth/join
 
   const onSubmit = async () => {
-    if (!invite.trim()) return Alert.alert("확인", "회사 시리얼 넘버를 입력해주세요.");
+    // 에러 메시지 초기화
+    setSerialError("");
+    setEmailError("");
+    if (!invite.trim()) {
+      setSerialError("시리얼 넘버를 입력해주세요.");
+      return;
+    }
     if (!name.trim()) return Alert.alert("확인", "이름을 입력해주세요.");
     if (!position.trim()) return Alert.alert("확인", "직책(사용자 유형)을 입력해주세요.");
-    if (!email.trim() || !email.includes("@"))
-      return Alert.alert("확인", "유효한 이메일을 입력해주세요.");
+    if (!email.trim() || !isEmailValid) {
+      setEmailError("이메일 형식으로 입력해 주세요");
+      return;
+    }
     if (!pw.trim() || pw.length < 6)
       return Alert.alert("확인", "비밀번호는 6자 이상 입력해주세요.");
     if (pw !== pw2) return Alert.alert("확인", "비밀번호 확인이 일치하지 않습니다.");
-
     try {
       setLoading(true);
 
@@ -115,11 +131,21 @@ export default function JoinScreen() {
             : res.status === 422
             ? "입력값이 올바르지 않습니다."
             : `HTTP ${res.status}`);
-        return Alert.alert("오류", String(msg));
+
+        // 입력칸별 에러 메시지 분기
+        if (msg.includes("시리얼") || msg.includes("회사")) {
+          setSerialError(msg);
+        } else if (msg.includes("이메일")) {
+          setEmailError(msg);
+        } else {
+          Alert.alert("오류", String(msg));
+        }
+        return;
       }
 
       Alert.alert("완료", "가입 신청이 접수되었습니다.");
-      // 필요하면 여기서 폼 초기화/네비게이션 처리
+      // 가입 성공 시 로그인 페이지로 이동
+      router.replace("/login");
     } catch (e) {
       console.error("join error:", e);
       Alert.alert(
@@ -145,7 +171,11 @@ export default function JoinScreen() {
           {/* 상단 브랜드 영역 – 모바일 스샷과 동일한 밀도 */}
           <View style={s.brandWrap}>
             <View style={s.logoCircle}>
-              <Text style={{ fontSize: 35 }}>🤖</Text>
+              <Image
+                source={require("../images/Chat.png")}
+                style={{ width: 50, height: 50, resizeMode: "contain" }}
+                accessibilityLabel="Chat Logo"
+              />
             </View>
             <Text style={s.brand}>
               <Text style={{ color: "#2563eb", fontWeight: "800" }}>Genmind</Text>{" "}
@@ -164,6 +194,7 @@ export default function JoinScreen() {
 
             {/* 시리얼 넘버 */}
             <Text style={s.label}>시리얼 넘버</Text>
+
             <TextInput
               style={s.input}
               placeholder="시리얼 넘버를 입력하세요"
@@ -171,6 +202,10 @@ export default function JoinScreen() {
               onChangeText={setInvite}
               autoCapitalize="none"
             />
+            {/* 시리얼 넘버 에러 메시지 */}
+            {serialError ? (
+              <Text style={{ fontSize: 12, color: '#ef4444', marginTop: 2, marginLeft: 2 }}>{serialError}</Text>
+            ) : null}
 
             {/* 이름 */}
             <Text style={[s.label, { marginTop: 14 }]}>이름</Text>
@@ -198,6 +233,7 @@ export default function JoinScreen() {
 
             {/* 이메일 */}
             <Text style={[s.label, { marginTop: 14 }]}>이메일</Text>
+
             <TextInput
               style={s.input}
               placeholder="example@company.com"
@@ -206,6 +242,12 @@ export default function JoinScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {/* 이메일 에러 메시지 및 형식 안내 */}
+            {(!isEmailValid && email.length > 0) ? (
+              <Text style={{ fontSize: 12, color: '#ef4444', marginTop: 2, marginLeft: 2 }}>이메일 형식으로 입력해 주세요</Text>
+            ) : emailError ? (
+              <Text style={{ fontSize: 12, color: '#ef4444', marginTop: 2, marginLeft: 2 }}>{emailError}</Text>
+            ) : null}
 
             {/* 비밀번호 */}
             <Text style={[s.label, { marginTop: 14 }]}>비밀번호</Text>
@@ -218,6 +260,7 @@ export default function JoinScreen() {
             />
 
             <Text style={[s.label, { marginTop: 14 }]}>비밀번호 확인</Text>
+
             <TextInput
               style={s.input}
               placeholder="비밀번호 확인"
@@ -225,6 +268,12 @@ export default function JoinScreen() {
               onChangeText={setPw2}
               secureTextEntry
             />
+            {/* 비밀번호 일치 안내 */}
+            {pw && pw2 && pw === pw2 && (
+              <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 2, marginLeft: 2 }}>
+                비밀번호가 같습니다
+              </Text>
+            )}
 
             <TouchableOpacity
               onPress={onSubmit}
