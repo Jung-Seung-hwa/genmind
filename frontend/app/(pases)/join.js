@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
+import Constants from "expo-constants";
 
 export default function JoinScreen() {
   const { width } = useWindowDimensions();
@@ -30,11 +31,35 @@ export default function JoinScreen() {
   const [pw2, setPw2] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const BASE_URL = Platform.select({
-    android: "http://10.0.2.2:8000",  // Android 에뮬레이터 → PC 로컬
-    ios: "http://localhost:8000",     // iOS 시뮬레이터
-    default: "http://localhost:8000", // Web/기타
-  });
+  // ---- BASE_URL 자동 감지 (Expo Go 실기기/에뮬/시뮬/웹 모두 커버) ----
+  const deriveLanBase = () => {
+    const sources = [
+      Constants?.expoConfig?.hostUri,     // 최신 Expo
+      Constants?.expoGoConfig?.hostUri,   // 일부 환경
+      Constants?.manifest?.debuggerHost,  // 구버전 호환 (예: "192.168.0.23:19000")
+    ].filter(Boolean);
+
+    for (const s of sources) {
+      const hostPart = String(s).split(":")[0]; // "192.168.0.23"
+      // 사설망 IP만 허용 (10.x.x.x / 172.16-31.x.x / 192.168.x.x)
+      const isPrivateIPv4 =
+        /^(10\.\d+\.\d+\.\d+)$/.test(hostPart) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostPart) ||
+        /^192\.168\.\d+\.\d+$/.test(hostPart);
+      if (isPrivateIPv4) return `http://${hostPart}:8000`;
+    }
+    return null;
+  };
+
+  const AUTO_LAN_URL = deriveLanBase();
+  const BASE_URL =
+    AUTO_LAN_URL ||
+    (Platform.OS === "android"
+      ? "http://10.0.2.2:8000"      // Android 에뮬레이터
+      : Platform.OS === "ios"
+      ? "http://127.0.0.1:8000"     // iOS 시뮬레이터
+      : "http://localhost:8000");   // Web/기타
+
   const JOIN_URL = `${BASE_URL}/auth/join`; // 라우트 프리픽스가 있으면 바꿔: 예) /api/auth/join
 
   const onSubmit = async () => {
@@ -56,11 +81,12 @@ export default function JoinScreen() {
 
       // position → user_type, serial → comp_idx(서버에서 매핑)
       const payload = {
-        serial: invite,     // 서버에서 comp_idx(FK)로 해석/매핑
-        email,              // PK
+        serial: String(invite), // 문자열로 전송 (서버에서 int 변환)
+        email,                  // PK
         name,
-        password: pw,       // 백엔드에서 passwd 컬럼으로 저장
-        user_type: position // 사용자 유형
+        password: pw,
+        position: position,     // 서버에서 user_type으로 사용
+        user_type: position,    // (겸사겸사 같이 보냄)
       };
 
       console.log("POST", JOIN_URL, payload);
@@ -126,6 +152,10 @@ export default function JoinScreen() {
               <Text style={{ color: "#0f172a", fontWeight: "800" }}>Chatbot</Text>
             </Text>
             <Text style={s.caption}>새 계정을 만들어주세요</Text>
+            {/* 개발 중 BASE_URL 확인용 (원하면 주석 처리) */}
+            <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
+              {BASE_URL}
+            </Text>
           </View>
 
           {/* 폼 카드 – 폭 고정/가운데 정렬 */}

@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import traceback
 
 # .env 파일 로드 (backend/.env)
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -33,3 +38,13 @@ app.include_router(auth.router)
 @app.get("/")
 def root():
     return {"message": "✅ FastAPI 서버 + MySQL 연결 준비 완료"}
+@app.exception_handler(Exception)
+async def all_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": type(exc).__name__,
+            "detail": str(exc),
+            "trace": traceback.format_exc(),
+        },
+    )

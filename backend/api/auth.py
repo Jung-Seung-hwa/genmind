@@ -2,78 +2,88 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field, AliasChoices
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
+from typing import Optional
 
 from db.session import get_db
-from models.user import User
-from models.company import Company  # ⬅️ 회사 모델 임포트
+from models.company import Company as CompanyModel
+from models.user import User as UserModel
+
+
+print("[AUTH LOADED]", __file__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
+# ==== Pydantic Schemas ====
 class JoinIn(BaseModel):
-    # 구버전 키(invite, empNo, mgrNo)도 허용하고 싶으면 AliasChoices 그대로 두세요.
-    serial:   str = Field(min_length=1, strip_whitespace=True,
-                          validation_alias=AliasChoices("serial", "invite"))
-    name:     str = Field(min_length=1, strip_whitespace=True,
-                          validation_alias=AliasChoices("name", "empNo"))
+    # serial == comp_idx (문자열/숫자 상관없이 문자열로 받아 정수 변환)
+    serial: str = Field(min_length=1, strip_whitespace=True,
+                        validation_alias=AliasChoices("serial", "invite"))
+    name: str = Field(min_length=1, strip_whitespace=True,
+                      validation_alias=AliasChoices("name", "empNo"))
+    # position == user_type
     position: str = Field(min_length=1, strip_whitespace=True,
-                          validation_alias=AliasChoices("position", "mgrNo"))
-    email:    EmailStr
+                          validation_alias=AliasChoices("position", "user_type", "mgrNo"))
+    email: EmailStr
     password: str = Field(min_length=6)
+
 
 class JoinOut(BaseModel):
     ok: bool
-    userId: int | None = None
+    email: EmailStr
+    comp_idx: int
+    user_type: str
     message: str
 
+
+# ==== Router ====
 @router.post("/join", response_model=JoinOut, status_code=201)
 def join(payload: JoinIn, db: Session = Depends(get_db)):
-    # 1) 회사 조회: payload.serial 로 t_company 찾기
-    filters = []
-    # 회사 모델에 어떤 컬럼이 있는지에 따라 유연하게 시도
-    if hasattr(Company, "serial"):      filters.append(Company.serial == payload.serial)
-    if hasattr(Company, "serial_no"):   filters.append(Company.serial_no == payload.serial)
-    if hasattr(Company, "code"):        filters.append(Company.code == payload.serial)
-    if hasattr(Company, "company_code"):filters.append(Company.company_code == payload.serial)
+    # 1) serial → comp_idx 정수화
+    try:
+        comp_idx = int(payload.serial)
+    except Exception:
+        raise HTTPException(status_code=422, detail="serial(comp_idx)는 정수 또는 정수 문자열이어야 합니다.")
 
-    if not filters:
-        raise HTTPException(status_code=500, detail="회사 식별 컬럼을 Company 모델에서 찾을 수 없습니다.")
-
-    company = db.query(Company).filter(or_(*filters)).first()
+    # 2) 회사 존재 확인 (t_company.comp_idx)
+    company = db.query(CompanyModel).filter(CompanyModel.comp_idx == comp_idx).first()
     if not company:
-        raise HTTPException(status_code=400, detail="유효하지 않은 시리얼입니다.")
+        raise HTTPException(status_code=404, detail="회사 시리얼 넘버를 찾을 수 없습니다.")
 
-    comp_idx = getattr(company, "idx", None) or getattr(company, "id", None)
-    if comp_idx is None:
-        raise HTTPException(status_code=500, detail="Company PK(idx/id)를 찾을 수 없습니다.")
+    # 3) 이메일 중복 확인 (t_user.email PK)
+    exists = db.query(UserModel).filter(UserModel.email == payload.email).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
 
-    # 2) 이메일 중복
-    if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(status_code=409, detail="이미 존재하는 이메일입니다.")
-
-    # 3) 비밀번호 해시 및 user_type 매핑
+    # 4) 비밀번호 해시 + user_type 정규화
     hashed = pwd_ctx.hash(payload.password)
-    user_type = "ADMIN" if payload.position.strip().lower() in ("admin", "관리자") else "USER"
+    role = payload.position.strip().lower()  # ex) "user" | "manager" | "admin" | 한국어 입력도 소문자 비교용
 
-    user = User(
+    # 5) 사용자 생성
+    user = UserModel(
         email=payload.email,
-        passwd=hashed,     # t_user.passwd
+        passwd=hashed,
         name=payload.name,
-        user_type=user_type,
-        comp_idx=comp_idx, # ⬅️ NOT NULL 충족
+        user_type=role,       # position 값을 그대로 user_type으로 저장
+        comp_idx=comp_idx,    # FK
     )
 
     try:
         db.add(user)
         db.commit()
+        # email이 PK라 refresh는 생략 가능하지만 혹시 몰라 유지
         db.refresh(user)
     except IntegrityError as e:
         db.rollback()
-        # 다른 제약 위반도 409로 정리
         raise HTTPException(status_code=409, detail="제약 조건 위반(중복 또는 FK 불일치)") from e
 
-    uid = getattr(user, "idx", None) or getattr(user, "id", None)
-    return JoinOut(ok=True, userId=uid, message="가입 완료")
+    return JoinOut(
+        ok=True,
+        email=user.email,
+        comp_idx=comp_idx,
+        user_type=role,
+        message="가입 완료",
+    )
