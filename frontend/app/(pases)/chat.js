@@ -39,9 +39,6 @@ export default function ChatScreen() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // FastAPI 상태
-  const [fastApiLoading, setFastApiLoading] = useState(false);
-  const [fastApiResponse, setFastApiResponse] = useState("");
 
   const listRef = useRef(null);
   const scrollToEnd = useCallback(() => {
@@ -104,21 +101,6 @@ export default function ChatScreen() {
     sendQuestion(trimmed);
   }, [input, isLoading, sendQuestion]);
 
-  // FastAPI 호출 (예시: /chat?q=테스트)
-  const callFastAPI = useCallback(async () => {
-    setFastApiLoading(true);
-    setFastApiResponse("");
-    try {
-      const res = await fetch(`${FASTAPI_BASE}/chat?q=${encodeURIComponent("테스트")}`);
-      if (!res.ok) throw new Error("FastAPI 호출 실패");
-      const json = await res.json();
-      setFastApiResponse(String(json.answer ?? "응답 없음"));
-    } catch (error) {
-      setFastApiResponse(`에러 발생 : ${error?.message ?? "알 수 없는 에러"}`);
-    } finally {
-      setFastApiLoading(false);
-    }
-  }, []);
 
   const renderItem = useCallback(({ item }) => {
     const bubbleStyle = item.isUser ? styles.userBubble : styles.botBubble;
@@ -172,13 +154,6 @@ export default function ChatScreen() {
         />
       </View>
 
-      {/* FastAPI quick test block */}
-      <View style={styles.fastapiBox}>
-        <TouchableOpacity style={styles.fastapiBtn} onPress={callFastAPI} disabled={fastApiLoading}>
-          {fastApiLoading ? <ActivityIndicator /> : <Text style={styles.fastapiBtnText}>FastAPI 호출</Text>}
-        </TouchableOpacity>
-        {!!fastApiResponse && <Text style={styles.fastapiResult}>{fastApiResponse}</Text>}
-      </View>
 
       {/* Input bar */}
       <View style={styles.inputBar}>
@@ -227,23 +202,6 @@ const styles = StyleSheet.create({
   userText: { color: "#065f46", fontWeight: "500" },
   botText: { color: "#fff", fontWeight: "500" },
 
-  fastapiBox: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 10,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
-  },
-  fastapiBtn: {
-    alignSelf: "flex-start",
-    backgroundColor: "#0ea5e9",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  fastapiBtnText: { color: "#fff", fontWeight: "700" },
-  fastapiResult: { marginTop: 8, color: "#0f172a", fontSize: 13 },
 
   inputBar: {
     flexDirection: "row",
