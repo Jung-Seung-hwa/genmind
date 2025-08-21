@@ -1,4 +1,7 @@
+import { Keyboard } from "react-native";
 import React, { useMemo, useRef, useState, useCallback, useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -27,6 +30,16 @@ const FASTAPI_BASE =
   (Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000");
 
 export default function ChatScreen() {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [messages, setMessages] = useState([
     {
@@ -52,7 +65,8 @@ export default function ChatScreen() {
   const sendQuestion = useCallback(async (question) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/questions`, {
+      // FastAPI 백엔드로 요청 (포트 8000, /api/chat/ask)
+      const res = await fetch(`${FASTAPI_BASE}/api/chat/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
@@ -67,7 +81,9 @@ export default function ChatScreen() {
           text: data.answer || "죄송합니다. 응답을 생성할 수 없습니다.",
           isUser: false,
           timestamp: new Date(),
-          source: data.source,
+          // 백엔드가 주는 출처 배열을 보존 (기존 shape 호환 위해 둘 다 넣어둠)
+          sources: data.sources,
+          source: data.sources,
         },
       ]);
     } catch (err) {
@@ -85,6 +101,7 @@ export default function ChatScreen() {
       setIsLoading(false);
     }
   }, []);
+
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
@@ -137,40 +154,40 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* Header */}
-      <View style={styles.headerWrap}>{header}</View>
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Header */}
+        <View style={styles.headerWrap}>{header}</View>
 
-      {/* Chat list */}
-      <View style={styles.listWrap}>
-        <FlatList
-          ref={listRef}
-          data={messages}
-          renderItem={renderItem}
-          keyExtractor={(m) => m.id}
-          contentContainerStyle={styles.listContent}
-        />
-      </View>
+        {/* Chat list */}
+        <View style={styles.listWrap}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            renderItem={renderItem}
+            keyExtractor={(m) => m.id}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
 
-
-      {/* Input bar */}
-      <View style={styles.inputBar}>
-        <TextInput
-          style={styles.input}
-          placeholder="질문을 입력하세요..."
-          placeholderTextColor="#94a3b8"
-          value={input}
-          onChangeText={setInput}
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-          editable={!isLoading}
-        />
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={isLoading}>
-          {isLoading ? <ActivityIndicator /> : <Text style={styles.sendText}>➤</Text>}
-        </TouchableOpacity>
-      </View>
+        {/* Input bar */}
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            placeholder="질문을 입력하세요..."
+            placeholderTextColor="#94a3b8"
+            value={input}
+            onChangeText={setInput}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            editable={!isLoading}
+          />
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={isLoading}>
+            {isLoading ? <ActivityIndicator /> : <Text style={styles.sendText}>➤</Text>}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
