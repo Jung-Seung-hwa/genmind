@@ -97,7 +97,7 @@ export default function TrialScreen() {
                 autoCorrect={false}
               />
               <View style={s.domainSuffix}>
-                <Text style={s.domainSuffixTxt}>.dooray.com</Text>
+                <Text style={s.domainSuffixTxt}>.gmchat.com</Text>
               </View>
             </View>
 
@@ -113,6 +113,7 @@ export default function TrialScreen() {
             />
 
             <Text style={s.label}>관리자 비밀번호</Text>
+
             <TextInput
               style={s.input}
               placeholder="비밀번호 입력"
@@ -127,6 +128,12 @@ export default function TrialScreen() {
               onChangeText={setPw2}
               secureTextEntry
             />
+            {/* 비밀번호 일치 안내 */}
+            {pw && pw2 && pw === pw2 && (
+              <Text style={{ fontSize: 12, color: '#22c55e', marginTop: 2, marginLeft: 2 }}>
+                비밀번호가 같습니다
+              </Text>
+            )}
 
             {/* 메일 인증 */}
             <Text style={s.label}>메일인증</Text>
@@ -145,7 +152,7 @@ export default function TrialScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={s.row}>
+            <View style={[s.row, { marginTop: 10 }]}> 
               <TextInput
                 style={[s.input, s.inputGrow]}
                 placeholder="인증번호를 입력해 주세요."
@@ -211,11 +218,6 @@ export default function TrialScreen() {
               />
             </View>
 
-            {/* reCAPTCHA 자리(디자인용) */}
-            <View style={s.captcha}>
-              <Text style={s.captchaTxt}>[ reCAPTCHA 자리(디자인) ]</Text>
-            </View>
-
             {/* 제출 버튼 */}
             <TouchableOpacity
               style={[s.primaryBtn, (!requiredOK || loading) && { opacity: 0.6 }]}
@@ -223,7 +225,7 @@ export default function TrialScreen() {
               onPress={onSubmit}
               activeOpacity={0.9}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>Let’s Dooray!</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnTxt}>등록하기</Text>}
             </TouchableOpacity>
 
             <Text style={s.footerTxt}>

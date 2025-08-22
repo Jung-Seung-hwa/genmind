@@ -181,7 +181,7 @@ export default function JoinScreen() {
               <Text style={{ color: "#2563eb", fontWeight: "800" }}>Genmind</Text>{" "}
               <Text style={{ color: "#0f172a", fontWeight: "800" }}>Chatbot</Text>
             </Text>
-            <Text style={s.caption}>새 계정을 만들어주세요</Text>
+            <Text style={s.caption}>중소기업 맞춤 자동응답 서비스</Text>
             {/* 개발 중 BASE_URL 확인용 (원하면 주석 처리) */}
             <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
               {BASE_URL}

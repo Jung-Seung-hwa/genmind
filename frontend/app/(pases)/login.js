@@ -186,9 +186,6 @@ export default function LoginScreen() {
             <TouchableOpacity onPress={handleChangeDomain}>
               <Text style={styles.link}>다른 도메인으로 로그인</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Alert.alert("아이디 찾기", "MVP: 추후 연결 예정")}>
-              <Text style={styles.link}>아이디가 궁금하신가요?</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")}>
               <Text style={styles.link}>비밀번호를 잊으셨나요?</Text>
             </TouchableOpacity>

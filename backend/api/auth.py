@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 from typing import Optional
+from api import admin_auth
 
 from db.session import get_db
 from models.company import Company as CompanyModel
