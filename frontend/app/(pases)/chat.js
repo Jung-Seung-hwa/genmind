@@ -1,33 +1,49 @@
-import { Keyboard } from "react-native";
 import React, { useMemo, useRef, useState, useCallback, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from "react-native";
+import { Keyboard, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput,
+         KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 
-// 메시지 객체는 JS에서는 타입 선언 없이 주석으로 설명만 남깁니다.
-// type Message = { id: string; text: string; isUser: boolean; timestamp: Date; source?: any };
+// ---- 자동 IP 추출 ----
+function getHostIp() {
+  // Expo Go/Dev Client에서 Metro 호스트 주소
+  const hostUri =
+    Constants.expoGoConfig?.hostUri ||
+    Constants.expoConfig?.hostUri ||
+    ""; // 없을 수도 있으니 대비
 
-const EXTRA = (Constants.expoConfig?.extra) ?? {};
+  if (!hostUri) return null;
+
+  // 예: "exp://192.168.219.219:8081" 또는 "192.168.219.219:8081"
+  const withoutProtocol = hostUri.replace(/^[a-zA-Z]+:\/\//, ""); // exp://, http:// 제거
+  const noPath = withoutProtocol.split("/")[0]; // 뒤에 경로가 있으면 제거
+  const ipOnly = noPath.split(":")[0]; // 포트 제거
+  return ipOnly || null;
+}
+
+const hostIp = getHostIp();
+
+const EXTRA = Constants.expoConfig?.extra ?? {};
+
 const API_BASE =
   EXTRA.API_BASE ??
-  (Platform.OS === "android" ? "http://10.0.2.2:3000" : "http://localhost:3000");
+  (hostIp
+    ? `http://${hostIp}:3000`
+    : Platform.OS === "android"
+      ? "http://10.0.2.2:3000"
+      : "http://localhost:3000");
 
-// ↓ FastAPI 주소: app.json에 { "expo": { "extra": { "FASTAPI_BASE": "http://<네PC IP>:8000" }}} 넣으면 그 값 사용
 const FASTAPI_BASE =
   EXTRA.FASTAPI_BASE ??
-  (Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000");
+  (hostIp
+    ? `http://${hostIp}:8000`
+    : Platform.OS === "android"
+      ? "http://10.0.2.2:8000"
+      : "http://localhost:8000");
+
+// 확인용 로그(개발 중 1회)
+console.log("FASTAPI_BASE:", FASTAPI_BASE);
 
 export default function ChatScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
