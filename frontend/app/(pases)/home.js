@@ -1,5 +1,7 @@
 // app/(pases)/home.js
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
+// API 주소 (환경변수/기본값)
+const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
 import { useRouter } from "expo-router";
 import {
   View,
@@ -13,6 +15,15 @@ import {
 } from "react-native";
 
 export default function HomeScreen() {
+  // 사용자명 상태
+  const [userName, setUserName] = useState("");
+  useEffect(() => {
+    // 로그인한 사용자 정보 가져오기
+    fetch(`${BASE}/me`, { credentials: "include" })
+      .then(r => r.json())
+      .then(me => setUserName(me?.name || ""))
+      .catch(() => {});
+  }, []);
   const [tasks, setTasks] = useState([
     { id: 1, text: "아침 운동하기", done: false },
     { id: 2, text: "회의 자료 준비하기", done: true },
@@ -50,7 +61,9 @@ export default function HomeScreen() {
         <View style={s.headerWrap}>
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
-              <Text style={s.hello}>안녕하세요, 김OO님!</Text>
+              <Text style={s.hello}>
+                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
+              </Text>
             </View>
             <View style={s.iconRow}>
               <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
