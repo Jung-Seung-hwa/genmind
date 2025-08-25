@@ -19,3 +19,14 @@ PyMySQL==1.1.1
 python-dotenv==1.0.1
 passlib[bcrypt]==1.7.4
 email-validator==2.1.1
+
+# core
+sentence-transformers==2.7.0
+transformers>=4.40,<5
+torch>=2.1
+numpy==1.26.4
+
+# langchain family
+langchain-huggingface>=0.1.0
+langchain-community==0.2.14
+faiss-cpu>=1.7.4

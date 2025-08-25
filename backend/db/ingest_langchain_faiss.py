@@ -13,10 +13,11 @@ DEFAULT_PDF_DIR   = HERE / "vector_store" / "data" / "laws"      # PDF 기본 �
 DEFAULT_STORE_DIR = HERE / "vector_store" / "faiss_langchain"    # 벡터 저장 폴더
 
 # ---------- LangChain ----------
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
+
 
 def load_pdfs(pdf_dir: Path):
     # 대소문자 상관없이 찾기 + 하위폴더까지 탐색
@@ -78,7 +79,19 @@ def main():
     print(f"[INFO] Split into {len(docs)} chunks (size={args.chunk_size}, overlap={args.chunk_overlap})")
 
     # 3) 임베딩
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+    embeddings = HuggingFaceEmbeddings(
+    model_name="BM-K/KoSimCSE-roberta-multitask",
+    encode_kwargs={"normalize_embeddings": True},
+    model_kwargs={"device": "cpu"}
+)
+    vectorstore = FAISS.load_local(
+    "db/vector_store/faiss_langchain",
+    embeddings,
+    allow_dangerous_deserialization=True
+)
+
+    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+
 
     # 4) 벡터스토어 저장
     vs = FAISS.from_documents(docs, embeddings)
