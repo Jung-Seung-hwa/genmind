@@ -1,38 +1,40 @@
-import os, re, json, time, asyncio, uuid
+# backend/api/main_faq.py
+import os, re, json, time, asyncio
 from pathlib import Path
 from typing import List, Dict
 from dotenv import load_dotenv, find_dotenv
 
-import pandas as pd
 from pypdf import PdfReader
 import httpx
 from difflib import SequenceMatcher
 from tqdm import tqdm
 
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from db.session import get_db
+from models.faq import CompFAQ   # ✅ 모델 import 확인
+
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 # ====== 설정 ======
-DEFAULT_MAX_PER_SECTION = 5       # 섹션당 최대 Q/A 수
-MIN_CONFIDENCE = 0.0              # 0~1, 이 미만 항목 제거
-SECTIONS_MAX_CHARS = 7000         # LLM에 보낼 섹션 최대 길이
-MODEL_DEFAULT = "gpt-4o-mini"     # .env에 LLM_MODEL 없으면 사용
+DEFAULT_MAX_PER_SECTION = 5
+MIN_CONFIDENCE = 0.0
+SECTIONS_MAX_CHARS = 7000
+MODEL_DEFAULT = "gpt-4o-mini"
 HTTP_TIMEOUT = 120.0
 RETRY = 3
-OUTPUT_DIR = "faq_output"
-SAVE_DEBUG_RAW = True             # LLM 원문 응답 저장 (_debug/*.txt)
-# ===================
+# ==================
 
-# .env 로드 (backend/.env 자동 탐색)
+# .env 로드
 load_dotenv(find_dotenv(usecwd=True))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL", MODEL_DEFAULT)
 assert OPENAI_API_KEY, "환경변수 OPENAI_API_KEY가 필요합니다 (.env에 설정)."
 
-Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-if SAVE_DEBUG_RAW:
-    Path(OUTPUT_DIR, "_debug").mkdir(parents=True, exist_ok=True)
-
 # ---------- 텍스트 전처리 ----------
 def _clean_artifacts(text: str) -> str:
-    """페이지 머리글/바닥글 제거, 공백/줄바꿈/하이픈 깨짐 보정"""
     lines = []
     for ln in text.splitlines():
         s = ln.strip()
@@ -40,12 +42,12 @@ def _clean_artifacts(text: str) -> str:
             continue
         if s in {"법제처", "국가법령정보센터"}:
             continue
-        if re.fullmatch(r"\d+\s*", s):  # 단독 숫자 라인(페이지 번호 등)
+        if re.fullmatch(r"\d+\s*", s):
             continue
-        s = re.sub(r"\s+", " ", s)     # 공백 정규화
+        s = re.sub(r"\s+", " ", s)
         lines.append(s)
     cleaned = "\n".join(lines)
-    cleaned = re.sub(r"(\S)-\s+(\S)", r"\1\2", cleaned)  # 줄바꿈 하이픈 보정
+    cleaned = re.sub(r"(\S)-\s+(\S)", r"\1\2", cleaned)
     return cleaned
 
 def extract_text_from_pdf(path: Path) -> str:
@@ -61,12 +63,12 @@ def extract_text_from_pdf(path: Path) -> str:
 # ---------- 섹션 분리 ----------
 HEADER_RE = re.compile(
     r"^("
-    r"(제?\s*\d+\s*조(\s*\([\w\d가-하]+\))?)|"  # 제7조, 제7조의5(…)
-    r"(\d+[\.\)]\s)|"                           # 1. / 1)
-    r"([가-하]\.\s)|"                           # 가. 나.
-    r"(□|■)|"                                   # 박스 마커
-    r"(\#{1,6}\s)|"                              # 마크다운 헤더
-    r"(\[[^\]]+\])"                              # [섹션]
+    r"(제?\s*\d+\s*조(\s*\([\w\d가-하]+\))?)|"
+    r"(\d+[\.\)]\s)|"
+    r"([가-하]\.\s)|"
+    r"(□|■)|"
+    r"(\#{1,6}\s)|"
+    r"(\[[^\]]+\])"
     r")"
 )
 
@@ -83,16 +85,12 @@ def split_into_sections(text: str) -> List[str]:
             buf.append(ln)
     if buf:
         sections.append("\n".join(buf))
-
-    # 200자 미만 섹션은 이전 섹션과 병합
     merged = []
     for s in sections:
         if merged and len(s) < 200:
             merged[-1] = merged[-1] + "\n" + s
         else:
             merged.append(s)
-
-    # 너무 긴 섹션은 문단 단위로 잘라 여러 청크로
     chunked = []
     for s in merged:
         if len(s) <= SECTIONS_MAX_CHARS:
@@ -121,13 +119,12 @@ def build_prompt(section_text: str, k: int) -> str:
 
 규칙:
 - 최대 {k}개
-- 문서에 없는 내용은 "근거 부족", confidence=0.0~0.3, ref_article="" (빈 문자열)
-- answer는 간결·정확·조건/예외 포함. 임의 추측/날조 금지.
-- ref_article에는 해당 조문/항목을 간단히 기입(예: "제7조의5(병가)").
+- 문서에 없는 내용은 "근거 부족", confidence=0.0~0.3, ref_article=""
+- answer는 간결·정확·조건/예외 포함
+- ref_article에는 해당 조문/항목을 간단히 기입
 
 섹션:
-\"\"\"{section_text[:SECTIONS_MAX_CHARS]}\"\"\"
-"""
+\"\"\"{section_text[:SECTIONS_MAX_CHARS]}\"\"\""""
 
 # ---------- JSON 파싱 ----------
 def _normalize_rows(arr: List[Dict]) -> List[Dict]:
@@ -150,14 +147,12 @@ def _normalize_rows(arr: List[Dict]) -> List[Dict]:
     return out
 
 def parse_json_safe(s: str) -> List[Dict]:
-    # 1차: 그대로
     try:
         data = json.loads(s)
         if isinstance(data, list):
             return _normalize_rows(data)
     except:
         pass
-    # 2차: 대괄호 구간만 추출
     i, j = s.find("["), s.rfind("]")
     if i != -1 and j != -1 and j > i:
         try:
@@ -185,7 +180,7 @@ async def call_llm(prompt: str, temperature: float = 0.2) -> str:
         data = r.json()
         return data["choices"][0]["message"]["content"].strip()
 
-# ---------- 후처리/중복 ----------
+# ---------- 후처리 ----------
 def _post_fix(row: Dict) -> Dict:
     row["question"] = re.sub(r"\s*\?\s*$", "?", row["question"]).strip()
     row["answer"] = re.sub(r"\s+", " ", row["answer"]).strip()
@@ -222,9 +217,6 @@ async def faq_from_pdf(pdf_path: Path,
         for attempt in range(RETRY):
             try:
                 raw = await call_llm(prompt)
-                if SAVE_DEBUG_RAW:
-                    dbg = Path(OUTPUT_DIR, "_debug", f"{pdf_path.stem}_sec{idx}.txt")
-                    dbg.write_text(raw, encoding="utf-8")
                 items = parse_json_safe(raw)
                 for it in items:
                     it["section_id"] = idx
@@ -242,67 +234,41 @@ async def faq_from_pdf(pdf_path: Path,
     rows = dedup_rows(rows)
     return rows
 
-# ---------- 저장 ----------
-def save_rows_to_xlsx(rows: List[Dict], out_path: Path):
-    df = pd.DataFrame(rows, columns=["source_file", "section_id", "question", "answer", "confidence", "ref_article"])
-    if df.empty:
-        df = pd.DataFrame(columns=["source_file", "section_id", "question", "answer", "confidence", "ref_article"])
-    with pd.ExcelWriter(out_path, engine="openpyxl") as w:
-        df.to_excel(w, index=False, sheet_name="FAQ")
-        guide = pd.DataFrame([{
-            "설명": "검수/수정 후 이 파일을 임베딩 파이프라인으로 등록하세요.",
-            "권장 컬럼": "source_file, section_id, question, answer, confidence, ref_article",
-            "팁": "answer가 '근거 부족'인 항목은 문서 근거를 보강하거나 제거하세요."
-        }])
-        guide.to_excel(w, index=False, sheet_name="GUIDE")
+# ---------- DB 저장 ----------
+def save_rows_to_db(rows: List[Dict], comp_domain: str, db: Session):
+    for r in rows:
+        faq = CompFAQ(
+            comp_domain="domain",
+            sc_file=r.get("source_file"),
+            question=r.get("question"),
+            answer=r.get("answer"),
+            ref_article=r.get("ref_article"),
+            views=0
+        )
+        db.add(faq)
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        print("DB 저장 실패:", e)
 
 # ---------- 엔트리 ----------
-async def run_per_file(input_dir: Path, k: int, min_conf: float):
-    pdfs = sorted([p for p in input_dir.iterdir() if p.suffix.lower() == ".pdf"])
-    total = 0
-    for pdf in pdfs:
-        rows = await faq_from_pdf(pdf, max_per_section=k, min_confidence=min_conf)
-        out = Path(OUTPUT_DIR) / f"faq_{pdf.stem}_{uuid.uuid4().hex[:6]}.xlsx"
-        save_rows_to_xlsx(rows, out)
-        print(f"[완료] {pdf.name}: {len(rows)}개 Q/A → {out}")
-        total += len(rows)
-    print(f"[합계] 총 {len(pdfs)}개 PDF, {total}개 Q/A 생성")
-
-async def run_combined(input_dir: Path, k: int, min_conf: float):
-    pdfs = sorted([p for p in input_dir.iterdir() if p.suffix.lower() == ".pdf"])
-    all_rows: List[Dict] = []
-    for pdf in pdfs:
-        rows = await faq_from_pdf(pdf, max_per_section=k, min_confidence=min_conf)
-        all_rows.extend(rows)
-    out = Path(OUTPUT_DIR) / f"faq_combined_{uuid.uuid4().hex[:8]}.xlsx"
-    save_rows_to_xlsx(all_rows, out)
-    print(f"[완료] {len(all_rows)}개 Q/A → {out}")
-
-async def run_single_file(pdf_path: Path, k: int, min_conf: float):
+async def run_single_file(pdf_path: Path, comp_domain: str, k: int, min_conf: float, db: Session):
     rows = await faq_from_pdf(pdf_path, max_per_section=k, min_confidence=min_conf)
-    out = Path(OUTPUT_DIR) / f"faq_{pdf_path.stem}_{uuid.uuid4().hex[:6]}.xlsx"
-    save_rows_to_xlsx(rows, out)
-    print(f"[완료] {pdf_path.name}: {len(rows)}개 Q/A → {out}")
+    save_rows_to_db(rows, comp_domain, db)
+    print(f"[완료] {pdf_path.name}: {len(rows)}개 Q/A → DB 저장")
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="PDF → FAQ 엑셀 생성 (품질 보강 버전)")
-    parser.add_argument("input_path", help="PDF 폴더 경로 또는 단일 PDF 파일 경로")
-    parser.add_argument("--mode", choices=["per_file", "combined", "single"], default="per_file",
-                        help="per_file: 파일별 저장 / combined: 하나로 합쳐 저장 / single: 단일 파일만")
+    parser = argparse.ArgumentParser(description="PDF → FAQ DB 저장")
+    parser.add_argument("pdf_path", help="PDF 파일 경로")
+    parser.add_argument("--domain", required=True, help="회사 도메인 (comp_domain)")
     parser.add_argument("--k", type=int, default=DEFAULT_MAX_PER_SECTION, help="섹션당 최대 Q/A 개수")
     parser.add_argument("--min_conf", type=float, default=MIN_CONFIDENCE, help="confidence 하한")
     args = parser.parse_args()
 
-    p = Path(args.input_path)
+    db = next(get_db())
+    p = Path(args.pdf_path)
     assert p.exists(), f"경로가 없습니다: {p}"
 
-    if args.mode == "single":
-        assert p.is_file() and p.suffix.lower() == ".pdf", "single 모드에는 단일 PDF 파일 경로를 주세요."
-        asyncio.run(run_single_file(p, args.k, args.min_conf))
-    else:
-        assert p.is_dir(), "per_file/combined 모드에는 폴더 경로를 주세요."
-        if args.mode == "per_file":
-            asyncio.run(run_per_file(p, args.k, args.min_conf))
-        else:
-            asyncio.run(run_combined(p, args.k, args.min_conf))
+    asyncio.run(run_single_file(p, args.domain, args.k, args.min_conf, db))
