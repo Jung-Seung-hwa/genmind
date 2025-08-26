@@ -17,6 +17,7 @@ import {
   Image,
 } from "react-native";
 import Constants from "expo-constants";
+import { Picker } from "@react-native-picker/picker"; // ← 추가 (드롭다운용)
 
 export default function JoinScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function JoinScreen() {
   // 폼 상태
   const [domain, setDomain] = useState("");   // 회사 도메인
   const [name, setName] = useState("");
-  const [position, setPosition] = useState(""); 
+  const [position, setPosition] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
@@ -64,8 +65,8 @@ export default function JoinScreen() {
     (Platform.OS === "android"
       ? "http://10.0.2.2:8000"
       : Platform.OS === "ios"
-      ? "http://127.0.0.1:8000"
-      : "http://localhost:8000");
+        ? "http://127.0.0.1:8000"
+        : "http://localhost:8000");
 
   const JOIN_URL = `${BASE_URL}/auth/join`;
 
@@ -98,7 +99,7 @@ export default function JoinScreen() {
       // ✅ domain 전달
       const payload = {
         domain: String(domain), // 회사 도메인
-        email,                  
+        email,
         name,
         password: pw,
         position: position,     // 서버에서 user_type으로 사용
@@ -118,7 +119,7 @@ export default function JoinScreen() {
       const text = await res.text();
       try {
         data = JSON.parse(text);
-      } catch (_) {}
+      } catch (_) { }
 
       if (!res.ok) {
         const msg =
@@ -127,10 +128,10 @@ export default function JoinScreen() {
           (res.status === 404
             ? "회사 도메인을 찾을 수 없습니다."
             : res.status === 409
-            ? "이미 가입된 이메일입니다."
-            : res.status === 422
-            ? "입력값이 올바르지 않습니다."
-            : `HTTP ${res.status}`);
+              ? "이미 가입된 이메일입니다."
+              : res.status === 422
+                ? "입력값이 올바르지 않습니다."
+                : `HTTP ${res.status}`);
 
         if (msg.includes("도메인") || msg.includes("회사")) {
           setDomainError(msg);
@@ -214,15 +215,43 @@ export default function JoinScreen() {
               autoCapitalize="none"
             />
 
-            {/* 직책 */}
-            <Text style={[s.label, { marginTop: 14 }]}>직책 (사용자 유형)</Text>
-            <TextInput
-              style={s.input}
-              placeholder="예) user, manager, admin"
-              value={position}
-              onChangeText={setPosition}
-              autoCapitalize="none"
-            />
+            {/* 사용자 유형 (드롭다운) */}
+            <Text style={[s.label, { marginTop: 14 }]}>사용자 유형</Text>
+            <View
+              style={[
+                s.input,                 // ← TextInput과 동일한 박스 스타일
+                { paddingVertical: 0, justifyContent: "center" }
+              ]}
+            >
+              <Picker
+                selectedValue={position}
+                onValueChange={(v) => setPosition(v)}
+                mode="dropdown"
+                style={[
+                  {
+                    height: 46,
+                    width: "100%",
+                    fontSize: 14,
+                    color: "#0f172a",
+                  },
+                  // ↓ 웹에서 기본 select 테두리 제거 + 배경 투명화 (react-native-web 지원 속성)
+                  Platform.OS === "web" && {
+                    outlineStyle: "none",
+                    borderWidth: 0,
+                    backgroundColor: "transparent",
+                    appearance: "none",
+                    paddingLeft: 0,       // s.input의 padding을 View가 이미 담당
+                    margin: 0,
+                  },
+                ]}
+                dropdownIconColor="#0f172a"
+              >
+                <Picker.Item label="선택하세요                                                        ▼" value="" color="#9ca3af" />
+                <Picker.Item label="user" value="user" />
+                <Picker.Item label="admin" value="admin" />
+              </Picker>            
+            </View>
+
 
             {/* 이메일 */}
             <Text style={[s.label, { marginTop: 14 }]}>이메일</Text>
