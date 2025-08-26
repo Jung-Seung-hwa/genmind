@@ -14,6 +14,7 @@ import {
   Platform,
 } from "react-native";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -45,17 +46,19 @@ export default function LoginScreen() {
   const BASE_URL =
     AUTO_LAN_URL ||
     (Platform.OS === "android"
-      ? "http://10.0.2.2:8000"      // Android 에뮬레이터
+      ? "http://10.0.2.2:8000" // Android 에뮬레이터
       : Platform.OS === "ios"
-      ? "http://127.0.0.1:8000"     // iOS 시뮬레이터
-      : "http://localhost:8000");   // Web/기타
+      ? "http://127.0.0.1:8000" // iOS 시뮬레이터
+      : "http://localhost:8000"); // Web/기타
 
   const LOGIN_URL = `${BASE_URL}/auth/login`;
 
   const fetchWithTimeout = (url, opts = {}, timeoutMs = 8000) => {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), timeoutMs);
-    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() =>
+      clearTimeout(id)
+    );
   };
 
   const handleLoginPress = async () => {
@@ -77,9 +80,7 @@ export default function LoginScreen() {
         10000
       );
 
-      const text = await res.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch (_) {}
+      const data = await res.json();
 
       if (!res.ok) {
         const msg =
@@ -91,15 +92,17 @@ export default function LoginScreen() {
         return Alert.alert("로그인 실패", String(msg));
       }
 
-      // 성공 처리: 필요 시 토큰 보관 (백엔드가 token을 반환한다면)
-      // if (data?.token) { await AsyncStorage.setItem("token", data.token); }
+      // ✅ 로그인 성공 시 user 정보 저장
+      await AsyncStorage.setItem("user", JSON.stringify(data));
 
       router.replace("/home");
     } catch (e) {
       console.error("login error:", e);
       Alert.alert(
         "네트워크 오류",
-        e.name === "AbortError" ? "요청이 시간초과되었습니다." : "서버에 연결할 수 없습니다."
+        e.name === "AbortError"
+          ? "요청이 시간초과되었습니다."
+          : "서버에 연결할 수 없습니다."
       );
     } finally {
       setIsLoading(false);
@@ -119,12 +122,19 @@ export default function LoginScreen() {
         <View style={styles.logoWrap}>
           <Image
             source={require("../../app/images/Chat.png")}
-            style={{ width: 120, height: 120, marginBottom: 14, resizeMode: "contain" }}
+            style={{
+              width: 120,
+              height: 120,
+              marginBottom: 14,
+              resizeMode: "contain",
+            }}
           />
           <Text style={styles.appTitle}>Genmind Chatbot</Text>
           <Text style={styles.appSubtitle}>중소기업 맞춤 자동응답 서비스</Text>
           {/* 개발 중 BASE_URL 확인용 */}
-          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>{BASE_URL}</Text>
+          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
+            {BASE_URL}
+          </Text>
         </View>
 
         {/* 카드 */}
@@ -134,7 +144,9 @@ export default function LoginScreen() {
           {/* 도메인 입력값 표시(미리보기) */}
           <View style={styles.domainRow}>
             <View style={styles.domainDot} />
-            <Text style={styles.domainText}>{domain || "도메인을 입력하세요"}</Text>
+            <Text style={styles.domainText}>
+              {domain || "도메인을 입력하세요"}
+            </Text>
           </View>
 
           <View style={styles.field}>
@@ -186,10 +198,14 @@ export default function LoginScreen() {
             <TouchableOpacity onPress={handleChangeDomain}>
               <Text style={styles.link}>다른 도메인으로 로그인</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")}>
+            <TouchableOpacity
+              onPress={() =>
+                Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")
+              }
+            >
               <Text style={styles.link}>비밀번호를 잊으셨나요?</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.replace("/admin_login")}> 
+            <TouchableOpacity onPress={() => router.replace("/admin_login")}>
               <Text style={styles.link}>관리자 로그인</Text>
             </TouchableOpacity>
           </View>
@@ -200,7 +216,12 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9", padding: 20, justifyContent: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
+    justifyContent: "center",
+  },
 
   // 로고
   logoWrap: { alignItems: "center", marginBottom: 32 },
@@ -217,10 +238,27 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-  cardTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", textAlign: "center", marginBottom: 8 },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+    textAlign: "center",
+    marginBottom: 8,
+  },
 
-  domainRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  domainDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981", marginRight: 6 },
+  domainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  domainDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#10b981",
+    marginRight: 6,
+  },
   domainText: { fontSize: 13, color: "#334155" },
 
   field: { marginTop: 12 },

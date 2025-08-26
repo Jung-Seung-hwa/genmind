@@ -15,7 +15,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # DB 연결, 모델 임포트
 from db.session import Base, engine, SessionLocal  # SessionLocal이 있다면 가져와서 헬스체크에 사용
-from models import company, user, document, gpt, unanswered  # noqa: F401 (테이블 선언 보장)
+from models import company, user  # noqa: F401 (테이블 선언 보장)
 from api import chat  # 기존 라우터 (prefix 가 /api/chat 인지 확인)
 from api import auth
 
