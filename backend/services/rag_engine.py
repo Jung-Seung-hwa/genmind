@@ -5,7 +5,7 @@ from typing import List, Tuple
 from dotenv import load_dotenv
 
 # 임베딩/벡터스토어: KoSimCSE + FAISS (langchain 분리 패키지)
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 # OpenAI LLM (분리 패키지 우선 사용, 없으면 구버전 fallback)
