@@ -17,7 +17,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 from db.session import Base, engine, SessionLocal  # SessionLocal이 있다면 가져와서 헬스체크에 사용
 from models import company, user  # noqa: F401 (테이블 선언 보장)
 from api import chat  # 기존 라우터 (prefix 가 /api/chat 인지 확인)
-from api import auth
+from api import auth, checklist
 
 # ------------------------------------------------------------------------------
 # FastAPI 앱 생성
@@ -58,6 +58,7 @@ Base.metadata.create_all(bind=engine)
 # ------------------------------------------------------------------------------
 app.include_router(chat.router)
 app.include_router(auth.router)
+app.include_router(checklist.router)
 
 # ------------------------------------------------------------------------------
 # 기본/헬스체크/버전 엔드포인트
