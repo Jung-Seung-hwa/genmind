@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useCallback, useEffect } from "react"
 import { Keyboard, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput,
          KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 
@@ -153,11 +154,11 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => router.replace('/home')} style={styles.backBtn}>
           <Text style={styles.backIcon}>‹</Text>
         </TouchableOpacity>
-        <View style={styles.logoOuter}>
-          <View style={styles.logoMid}>
-            <View style={styles.logoInner} />
-          </View>
-        </View>
+        <Image
+          source={require("../images/Chat.png")}
+          style={styles.logoImg}
+          resizeMode="contain"
+        />
         <View>
           <Text style={styles.title}>Genmind AI</Text>
           <Text style={styles.subtitle}>온라인</Text>
@@ -214,12 +215,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10 },
   backBtn: { padding: 8, marginRight: 6 },
   backIcon: { fontSize: 22, color: "#0f172a" },
-  logoOuter: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: "#2563eb",
-    alignItems: "center", justifyContent: "center", marginRight: 10,
+  logoImg: {
+    width: 36,
+    height: 36,
+    marginRight: 10,
   },
-  logoMid: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  logoInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#2563eb" },
   title: { fontSize: 16, fontWeight: "600", color: "#0f172a" },
   subtitle: { fontSize: 12, color: "#64748b" },
 

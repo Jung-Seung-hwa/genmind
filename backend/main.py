@@ -5,13 +5,17 @@ import os
 import traceback
 from typing import List, Optional
 
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
-# .env 로드 (backend/.env)
+# .env 로드 (backend/.env) - 반드시 최상단에서 실행
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+from api import faq
+from api import files
 
 # DB 연결, 모델 임포트
 from db.session import Base, engine, SessionLocal  # SessionLocal이 있다면 가져와서 헬스체크에 사용
@@ -59,6 +63,8 @@ Base.metadata.create_all(bind=engine)
 app.include_router(chat.router)
 app.include_router(auth.router)
 app.include_router(checklist.router)
+app.include_router(faq.router)
+app.include_router(files.router)
 
 # ------------------------------------------------------------------------------
 # 기본/헬스체크/버전 엔드포인트

@@ -112,7 +112,6 @@ export default function AdminDashboardWeb() {
     setAnalysis(null);
     setAnalyzing(true);
     try {
-      // 1) 실제 백엔드 호출
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch(`${API_BASE}/admin/files/analyze`, {
@@ -129,7 +128,6 @@ export default function AdminDashboardWeb() {
         ...data,
       });
     } catch (e) {
-      // 2) 목업
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       const docType =
         ext === "pdf" ? "PDF 문서" :
@@ -193,6 +191,12 @@ export default function AdminDashboardWeb() {
         </View>
         <View style={styles.topRight}>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>🔔</Text></Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/chat")}> 
+            <Text style={styles.iconTxt}>💬 Chat</Text>
+          </Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}> 
+            <Text style={styles.iconTxt}>🏠 Home</Text>
+          </Pressable>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>👤</Text></Pressable>
           <Pressable style={styles.btnDark} onPress={onLogout}>
             <Text style={styles.btnDarkText}>로그아웃</Text>
@@ -201,7 +205,7 @@ export default function AdminDashboardWeb() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        {/* ── 상단 2열: 왼쪽 업로드, 오른쪽 업로드된 문서 목록 (← 여기서 위치 교체) ── */}
+        {/* 상단 2열: 업로드 + 문서 목록 */}
         <View style={styles.grid2}>
           {/* 문서 업로드 */}
           <View style={[styles.card, styles.cardUpload]}>
@@ -230,9 +234,15 @@ export default function AdminDashboardWeb() {
                 </Text>
               )}
 
-              <Pressable style={[styles.btnDark, { marginTop: 8 }]} onPress={handleBtnClick}>
-                <Text style={styles.btnDarkText}>파일 선택</Text>
+              {/* 업로드 페이지로 이동 */}
+              <Pressable
+                style={[styles.btnDark, { marginTop: 8 }]}
+                onPress={() => router.replace("/faq-upload")}
+              >
+                <Text style={styles.btnDarkText}>파일 업로드</Text>
               </Pressable>
+
+              {/* 숨겨둔 input (필요 시 사용) */}
               <input
                 ref={inputRef}
                 type="file"
@@ -243,7 +253,7 @@ export default function AdminDashboardWeb() {
             </View>
           </View>
 
-          {/* 업로드 된 문서 목록 (상단 오른쪽으로 이동) */}
+          {/* 업로드 된 문서 목록 */}
           <View style={styles.card}>
             <View style={[styles.cardHead, { alignItems: "center" }]}>
               <Text style={styles.em}>📄</Text>
@@ -265,7 +275,7 @@ export default function AdminDashboardWeb() {
                 <View style={styles.col}><Text>{f.date}</Text></View>
                 <View style={styles.col}><Text>{f.size}</Text></View>
                 <View style={[styles.col, { minWidth: 80 }]}>{f.status}</View>
-                <View style={[styles.col, { flexDirection: "row", gap: 8 }]}>
+                <View style={[styles.col, { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", minWidth: 120 }]}>
                   <Pressable style={[styles.btnSm, styles.btnSmSolid]}><Text style={[styles.btnSmText, styles.btnSmTextSolid]}>다운로드</Text></Pressable>
                   <Pressable style={[styles.btnSm, styles.btnSmGhost]}><Text style={[styles.btnSmText, styles.btnSmTextGhost]}>삭제</Text></Pressable>
                 </View>
@@ -274,11 +284,10 @@ export default function AdminDashboardWeb() {
           </View>
         </View>
 
-        {/* 2행: 가입 승인 요청(왼쪽) + 캘린더(오른쪽) */}
-        {/* 캘린더만 남김 */}
+        {/* 캘린더 */}
         <View style={styles.grid2}>
           <View style={styles.card}>
-            <View style={[styles.cardHead, { justifyContent: "space-between" }]}> 
+            <View style={[styles.cardHead, { justifyContent: "space-between" }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Pressable
                   style={styles.chevronBtn}
@@ -314,52 +323,52 @@ export default function AdminDashboardWeb() {
                 datesSet={(arg) => setCalendarTitle(arg.view.title)}
               />
             </View>
-
-            {/* 일정 추가 모달 */}
-            {showAddModal && (
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalBox}>
-                  <Text style={{ fontWeight: "700", fontSize: 18, marginBottom: 12 }}>일정 추가</Text>
-                  <input
-                    type="date"
-                    value={newEventDate}
-                    onChange={(e) => setNewEventDate(e.target.value)}
-                    style={styles.inputWeb}
-                  />
-                  <input
-                    type="text"
-                    placeholder="일정 제목"
-                    value={newEventTitle}
-                    onChange={(e) => setNewEventTitle(e.target.value)}
-                    style={{ ...styles.inputWeb, width: 220 }}
-                  />
-                  <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end" }}>
-                    <Pressable
-                      style={[styles.btnDark, { paddingHorizontal: 16 }]}
-                      onPress={() => {
-                        if (newEventTitle && newEventDate) {
-                          setEvents((prev) => [...prev, { title: newEventTitle, date: newEventDate }]);
-                          setShowAddModal(false);
-                          setNewEventTitle("");
-                          setNewEventDate("");
-                        }
-                      }}
-                    >
-                      <Text style={styles.btnDarkText}>추가</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.btnSm, styles.btnSmGhost]}
-                      onPress={() => setShowAddModal(false)}
-                    >
-                      <Text style={styles.btnSmText}>취소</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            )}
           </View>
         </View>
       </ScrollView>
+
+      {/* 일정 추가 모달 — 루트에서 렌더링 */}
+      {showAddModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={{ fontWeight: "700", fontSize: 18, marginBottom: 12 }}>일정 추가</Text>
+            <input
+              type="date"
+              value={newEventDate}
+              onChange={(e) => setNewEventDate(e.target.value)}
+              style={styles.inputWeb}
+            />
+            <input
+              type="text"
+              placeholder="일정 제목"
+              value={newEventTitle}
+              onChange={(e) => setNewEventTitle(e.target.value)}
+              style={{ ...styles.inputWeb, width: 220 }}
+            />
+            <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end" }}>
+              <Pressable
+                style={[styles.btnDark, { paddingHorizontal: 16 }]}
+                onPress={() => {
+                  if (newEventTitle && newEventDate) {
+                    setEvents((prev) => [...prev, { title: newEventTitle, date: newEventDate }]);
+                    setShowAddModal(false);
+                    setNewEventTitle("");
+                    setNewEventDate("");
+                  }
+                }}
+              >
+                <Text style={styles.btnDarkText}>추가</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnSm, styles.btnSmGhost]}
+                onPress={() => setShowAddModal(false)}
+              >
+                <Text style={styles.btnSmText}>취소</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* 파일 분석 모달 */}
       {showAnalyzeModal && (
@@ -520,7 +529,16 @@ const styles = StyleSheet.create({
   pillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
   /* Modal / inputs */
-  modalOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.25)", alignItems: "center", justifyContent: "center", zIndex: 50, display: "flex" },
+  modalOverlay: {
+    position: "fixed",
+    top: 0, right: 0, bottom: 0, left: 0,         // inset 대신 4변 고정
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,                                  // 크게
+    display: "flex",
+    pointerEvents: "auto",
+  },
   modalBox: { backgroundColor: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 10px 24px rgba(0,0,0,.15)" },
   inputWeb: { marginBottom: 8, padding: 8, borderRadius: 8, border: "1px solid #d1d5db" },
 
