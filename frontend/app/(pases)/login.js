@@ -1,25 +1,14 @@
 // app/(page)/login.js
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
-import { Image } from "react-native";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { Image, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [domain, setDomain] = useState(""); // 디자인 미리보기용
+  const [domain, setDomain] = useState(""); // UI 미리보기용
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -56,9 +45,7 @@ export default function LoginScreen() {
   const fetchWithTimeout = (url, opts = {}, timeoutMs = 8000) => {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), timeoutMs);
-    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() =>
-      clearTimeout(id)
-    );
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
   };
 
   const handleLoginPress = async () => {
@@ -80,30 +67,44 @@ export default function LoginScreen() {
         10000
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         const msg =
           data?.detail ||
           data?.message ||
-          (res.status === 401
-            ? "이메일 또는 비밀번호가 올바르지 않습니다."
-            : `HTTP ${res.status}`);
-        return Alert.alert("로그인 실패", String(msg));
+          (res.status === 401 ? "이메일 또는 비밀번호가 올바르지 않습니다." : `HTTP ${res.status}`);
+        Alert.alert("로그인 실패", String(msg));
+        return;
       }
 
       // ✅ 로그인 성공 시 user 정보 저장
       await AsyncStorage.setItem("user", JSON.stringify(data));
 
+      // --- 관리자 여부 확인 ---
+      const userType = String(data?.user_type || data?.role || "").toLowerCase();
+      const tenantFromServer = data?.comp_domain || "";
+      const tenantFromEmail = String(email.split("@")[1] || "").trim();
+      const tenant = (tenantFromServer || tenantFromEmail || domain || "").trim();
+
+      if (userType === "admin") {
+        // 웹(Expo Web)에서는 관리자 대시보드로 바로 라우팅
+        if (Platform.OS === "web") {
+          // 필요시 테넌트 쿼리로 넘기고 싶으면: `/adminDashboard?tenant=${encodeURIComponent(tenant)}`
+          router.replace("/adminDashboard");
+          return;
+        }
+        // 네이티브 앱에서는 관리자 대시보드가 웹 전용인 점 안내 후 앱 홈으로
+        Alert.alert("안내", "관리자 대시보드는 웹에서 이용해주세요.\n(PC 브라우저에서 로그인 시 바로 열립니다.)");
+        router.replace("/home");
+        return;
+      }
+
+      // 일반 사용자 경로
       router.replace("/home");
     } catch (e) {
       console.error("login error:", e);
-      Alert.alert(
-        "네트워크 오류",
-        e.name === "AbortError"
-          ? "요청이 시간초과되었습니다."
-          : "서버에 연결할 수 없습니다."
-      );
+      Alert.alert("네트워크 오류", e.name === "AbortError" ? "요청이 시간초과되었습니다." : "서버에 연결할 수 없습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -113,28 +114,18 @@ export default function LoginScreen() {
   const handleChangeDomain = () => router.replace("/domain");
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={styles.container}>
         {/* 로고/타이틀 */}
         <View style={styles.logoWrap}>
           <Image
             source={require("../../app/images/Chat.png")}
-            style={{
-              width: 120,
-              height: 120,
-              marginBottom: 14,
-              resizeMode: "contain",
-            }}
+            style={{ width: 120, height: 120, marginBottom: 14, resizeMode: "contain" }}
           />
           <Text style={styles.appTitle}>Genmind Chatbot</Text>
           <Text style={styles.appSubtitle}>중소기업 맞춤 자동응답 서비스</Text>
           {/* 개발 중 BASE_URL 확인용 */}
-          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
-            {BASE_URL}
-          </Text>
+          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>{BASE_URL}</Text>
         </View>
 
         {/* 카드 */}
@@ -144,9 +135,7 @@ export default function LoginScreen() {
           {/* 도메인 입력값 표시(미리보기) */}
           <View style={styles.domainRow}>
             <View style={styles.domainDot} />
-            <Text style={styles.domainText}>
-              {domain || "도메인을 입력하세요"}
-            </Text>
+            <Text style={styles.domainText}>{domain || "도메인을 입력하세요"}</Text>
           </View>
 
           <View style={styles.field}>
@@ -154,12 +143,16 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => {
+                setEmail(v);
+                // 이메일 입력 시 도메인 추출하여 표시
+                const d = String(v.split("@")[1] || "").trim();
+                if (d) setDomain(d);
+              }}
               placeholder="example@company.com"
               autoCapitalize="none"
               keyboardType="email-address"
               returnKeyType="next"
-              onSubmitEditing={() => {}}
             />
           </View>
 
@@ -176,16 +169,8 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]}
-            onPress={handleLoginPress}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>로그인</Text>
-            )}
+          <TouchableOpacity style={[styles.primaryBtn, isLoading && { opacity: 0.7 }]} onPress={handleLoginPress} disabled={isLoading}>
+            {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>로그인</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.outlineBtn} onPress={handleSignupPress}>
@@ -198,15 +183,8 @@ export default function LoginScreen() {
             <TouchableOpacity onPress={handleChangeDomain}>
               <Text style={styles.link}>다른 도메인으로 로그인</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() =>
-                Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")
-              }
-            >
+            <TouchableOpacity onPress={() => Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")}>
               <Text style={styles.link}>비밀번호를 잊으셨나요?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.replace("/admin_login")}>
-              <Text style={styles.link}>관리자 로그인</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -216,18 +194,11 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f1f5f9",
-    padding: 20,
-    justifyContent: "center",
-  },
-
+  container: { flex: 1, backgroundColor: "#f1f5f9", padding: 20, justifyContent: "center" },
   // 로고
   logoWrap: { alignItems: "center", marginBottom: 32 },
   appTitle: { fontSize: 24, fontWeight: "700", color: "#0f172a" },
   appSubtitle: { fontSize: 13, color: "#475569", marginTop: 4 },
-
   // 카드
   card: {
     backgroundColor: "#fff",
@@ -238,50 +209,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0f172a",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  domainRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  domainDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#10b981",
-    marginRight: 6,
-  },
+  cardTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", textAlign: "center", marginBottom: 8 },
+  domainRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  domainDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981", marginRight: 6 },
   domainText: { fontSize: 13, color: "#334155" },
-
   field: { marginTop: 12 },
   label: { fontSize: 13, color: "#334155", marginBottom: 6 },
-  input: {
-    height: 48,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: "#0f172a",
-  },
-
-  primaryBtn: {
-    marginTop: 20,
-    height: 48,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563eb",
-  },
+  input: { height: 48, backgroundColor: "#f1f5f9", borderRadius: 8, paddingHorizontal: 12, fontSize: 14, color: "#0f172a" },
+  primaryBtn: { marginTop: 20, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#2563eb" },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-
   outlineBtn: {
     marginTop: 10,
     height: 48,
@@ -293,7 +229,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   outlineBtnText: { color: "#334155", fontSize: 15, fontWeight: "600" },
-
   linksWrap: { alignItems: "center", marginTop: 18 },
   linksDivider: { fontSize: 12, color: "#94a3b8", marginBottom: 8 },
   link: { fontSize: 13, color: "#2563eb", marginTop: 6 },

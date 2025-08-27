@@ -1,5 +1,5 @@
 // app/(pases)/home.js
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 // API 주소 (환경변수/기본값)
 const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
 import { useRouter } from "expo-router";
@@ -12,6 +12,9 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 
 export default function HomeScreen() {
@@ -25,20 +28,22 @@ export default function HomeScreen() {
       .catch(() => {});
   }, []);
   const [tasks, setTasks] = useState([
-    { id: 1, text: "아침 운동하기", done: false },
-    { id: 2, text: "회의 자료 준비하기", done: true },
-    { id: 3, text: "점심 약속 확인하기", done: false, due: "2025-08-12" },
-    { id: 4, text: "프로젝트 리뷰하기", done: false },
+    { id: 1, text: "모든 회사 직원 사용 가능", done: false },
+    { id: 2, text: "차별화", done: false },
+    { id: 3, text: "그러면 투두 리스트 피그마처럼 공유", done: false, due: "from : 정승화" },
+    { id: 4, text: "일을 공유한사람들 체크하면 같이 체크공유?", done: false },
     { id: 5, text: "주간 보고서 작성하기", done: false },
   ]);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskText, setNewTaskText] = useState("");
+  const inputRef = useRef(null);
 
   const faqs = useMemo(
     () => [
-      "앱 사용법이 궁금해요",
-      "계정 설정을 변경하려면?",
-      "알림 설정은 어떻게 하나요?",
       "데이터 백업은 어떻게 하나요?",
-      "dddd"
+      "공유하기 기능이 있나요?",
+      "사내 메세지? 그걸로 일감 보내기",
+      "일을 했으면 체크 하면 일감 준 분한테 알림 가게",
     ],
     []
   );
@@ -47,6 +52,27 @@ export default function HomeScreen() {
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
     );
+  }, []);
+
+  const addTask = useCallback(() => {
+    if (!newTaskText.trim()) return;
+    setTasks((prev) => [
+      ...prev,
+      { id: Date.now(), text: newTaskText.trim(), done: false },
+    ]);
+    setNewTaskText("");
+    setShowAddTask(false);
+  }, [newTaskText]);
+
+  // 포커스 자동
+  useEffect(() => {
+    if (showAddTask && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showAddTask]);
+
+  const deleteTask = useCallback((id) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   // 중복 선언 제거
@@ -100,37 +126,71 @@ export default function HomeScreen() {
 
         {/* 오늘 할 일 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>오늘 할 일</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.cardTitle}>오늘 할 일</Text>
+            <TouchableOpacity style={s.addTaskBtn} onPress={() => setShowAddTask(true)}>
+              <Text style={s.addTaskBtnTxt}>＋</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ marginTop: 10 }}>
             {tasks.map((t, idx) => (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => toggleTask(t.id)}
-                activeOpacity={0.8}
-                style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}
-              >
-                <View style={[s.checkbox, t.done && s.checkboxOn]}>
-                  {t.done ? <Text style={s.checkmark}>✓</Text> : null}
-                </View>
-                <View style={s.taskTextBox}>
-                  <Text
-                    style={[
-                      s.taskText,
-                      t.done && s.taskTextDone,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {t.text}
-                  </Text>
-                  {!!t.due && !t.done && (
-                    <Text style={s.taskDue}>⏰ {t.due}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <View key={t.id} style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}> 
+                <TouchableOpacity onPress={() => toggleTask(t.id)} activeOpacity={0.8} style={{ flexDirection: 'row', flex: 1, alignItems: 'center' }}>
+                  <View style={[s.checkbox, t.done && s.checkboxOn]}>
+                    {t.done ? <Text style={s.checkmark}>✓</Text> : null}
+                  </View>
+                  <View style={s.taskTextBox}>
+                    <Text
+                      style={[
+                        s.taskText,
+                        t.done && s.taskTextDone,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t.text}
+                    </Text>
+                    {!!t.due && !t.done && (
+                      <Text style={s.taskDue}>⏰ {t.due}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteTask(t.id)} style={s.deleteTaskBtn} activeOpacity={0.7}>
+                  <Text style={s.deleteTaskBtnTxt}><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg></Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
 
-          
+          {/* 할 일 추가 모달 */}
+          {showAddTask && (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={s.modalOverlay}
+            >
+              <View style={s.modalBoxBetter}>
+                <Text style={s.modalTitle}>할 일 추가</Text>
+                <TextInput
+                  ref={inputRef}
+                  style={s.modalInput}
+                  value={newTaskText}
+                  onChangeText={setNewTaskText}
+                  placeholder="할 일을 입력하세요"
+                  returnKeyType="done"
+                  onSubmitEditing={addTask}
+                  autoFocus
+                />
+                <View style={s.modalBtnRow}>
+                  <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
+                    <Text style={s.addTaskModalBtnTxt}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
+                    <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+// ...existing code...
         </View>
 
         {/* 자주 묻는 질문 */}
@@ -156,6 +216,111 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
+  modalBoxBetter: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 28,
+    minWidth: 320,
+    maxWidth: 380,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    elevation: 8
+  },
+  modalTitle: {
+    fontWeight: '800',
+    fontSize: 20,
+    marginBottom: 6,
+    color: '#1f2a44',
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f7f9ff',
+    marginBottom: 0,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  addTaskBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTaskBtnTxt: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    lineHeight: 24,
+  },
+  deleteTaskBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  deleteTaskBtnTxt: {
+    color: '#ef4444',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  modalOverlay: {
+    position: 'fixed',
+    left: 0, top: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    display: 'flex',
+    pointerEvents: 'auto',
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 320,
+    boxShadow: '0 10px 24px rgba(0,0,0,.15)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  addTaskModalBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 8,
+  },
+  addTaskModalBtnTxt: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  cancelTaskModalBtn: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 8,
+  },
+  cancelTaskModalBtnTxt: {
+    color: '#334155',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   safe: { flex: 1, backgroundColor: "#eaf2ff" },
   container: {
   faqGoBtn: {
@@ -262,6 +427,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+    zIndex: 0,
   },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0b347a" },
 
@@ -311,6 +477,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 8,
+    zIndex: 0,
   },
   faqQ: { color: "#2563eb", fontWeight: "800", marginRight: 8 },
   faqText: { color: "#1f2a44", fontSize: 14, flex: 1 },
