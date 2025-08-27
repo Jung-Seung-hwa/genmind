@@ -19,6 +19,11 @@ except Exception:
 
 from langchain.chains import RetrievalQA
 
+# --- ✅ [추가] DB 관련 임포트 ---
+from sqlalchemy import update, select
+from db.session import SessionLocal
+from models.faq import CompFAQ
+
 # --- .env 로드 (backend/.env) ---
 _ENV_LOADED = False
 def _ensure_env():
@@ -85,11 +90,57 @@ def _load():
         chain_type="stuff",
     )
 
+# --- ✅ [추가] 조회수 증가 유틸 ---
+def increment_view_by_qa_id(qa_id: int) -> bool:
+    """qa_id로 comp_faq.views 를 +1한다. 성공 시 True."""
+    try:
+        with SessionLocal() as db:
+            stmt = (
+                update(CompFAQ)
+                .where(CompFAQ.qa_id == qa_id)
+                .values(views=CompFAQ.views + 1)
+            )
+            res = db.execute(stmt)
+            db.commit()
+            return res.rowcount > 0
+    except Exception:
+        # 조회수 업데이트 실패해도 서비스 흐름은 깨지지 않게
+        return False
+
+def increment_view_by_question_exact(question: str) -> bool:
+    """메타데이터에 qa_id가 없는 옛 인덱스를 대비한 fallback."""
+    try:
+        with SessionLocal() as db:
+            row = db.execute(
+                select(CompFAQ.qa_id).where(CompFAQ.question == question)
+            ).first()
+            if not row:
+                return False
+            return increment_view_by_qa_id(int(row[0]))
+    except Exception:
+        return False
+
 def ask(question: str) -> Tuple[str, List[dict]]:
     _load()
     out = _chain({"query": question})
     answer = out.get("result") or out.get("answer") or ""
     docs = out.get("source_documents") or []
+
+    # --- ✅ [추가] 매칭된 문서 기반으로 조회수 1회 증가 ---
+    # 가장 유사한 1건만 카운트 (원하면 전체 문서에 대해 set으로 중복 제거 후 반복 가능)
+    try:
+        if docs:
+            md = getattr(docs[0], "metadata", {}) or {}
+            qa_id = md.get("qa_id")
+            if qa_id is not None:
+                increment_view_by_qa_id(int(qa_id))
+            else:
+                qtext = md.get("question")
+                if qtext:
+                    increment_view_by_question_exact(qtext)
+    except Exception:
+        # 조회수 로깅 실패는 무시 (메인 답변 흐름 보장)
+        pass
 
     sources = []
     for d in docs:

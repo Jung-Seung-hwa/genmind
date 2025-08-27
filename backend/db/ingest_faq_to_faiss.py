@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from db.session import SessionLocal
 from models.gpt import CompFAQ
+from models.faq import CompFAQ
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -33,15 +34,17 @@ def fetch_faqs(limit=None):
 def to_documents(rows):
     docs = []
     for r in rows:
-        # 페이지 컨텐츠에 Q/A를 함께 넣어 검색 recall↑
-        content = f"Q: {r.question}\nA: {r.answer}\n출처파일: {r.sc_file or ''}\n관련조문: {r.ref_article or ''}"
+        # page_content에는 검색에 쓸 텍스트를 넣고,
+        # metadata엔 DB 식별/부가정보를 담는다.
+        page = f"Q: {r.question}\nA: {r.answer}"
         meta = {
             "qa_id": r.qa_id,
-            "comp_domain": r.comp_domain,
+            "question": r.question,
             "sc_file": r.sc_file,
             "ref_article": r.ref_article,
+            "comp_domain": r.comp_domain,
         }
-        docs.append(Document(page_content=content, metadata=meta))
+        docs.append(Document(page_content=page, metadata=meta))
     return docs
 
 def save_faiss(docs, embeddings, vstore_dir, mode="rebuild"):
