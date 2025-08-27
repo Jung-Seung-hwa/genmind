@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
-// API 주소 (환경변수/기본값)
+import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ 추가
 const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
 import { useRouter } from "expo-router";
 import {
@@ -10,22 +10,34 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
-  Image,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Modal,            // ✅ 추가
+  Modal,
 } from "react-native";
 
 export default function HomeScreen() {
   // 사용자명 상태
   const [userName, setUserName] = useState("");
+
   useEffect(() => {
-    // 로그인한 사용자 정보 가져오기
-    fetch(`${BASE}/me`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((me) => setUserName(me?.name || ""))
-      .catch(() => {});
+    const fetchMe = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) return; // 토큰 없으면 로그인 안 된 상태
+        const res = await fetch(`${BASE}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) throw new Error("인증 실패");
+        const me = await res.json();
+        setUserName(me?.name || "");
+      } catch (e) {
+        console.log("me 불러오기 실패", e);
+      }
+    };
+    fetchMe();
   }, []);
 
   const [tasks, setTasks] = useState([
@@ -61,7 +73,6 @@ export default function HomeScreen() {
     setShowAddTask(false);
   }, [newTaskText]);
 
-  // 포커스 자동
   useEffect(() => {
     if (showAddTask && inputRef.current) {
       inputRef.current.focus();
@@ -83,7 +94,9 @@ export default function HomeScreen() {
         <View style={s.headerWrap}>
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
-              <Text style={s.hello}>{userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}</Text>
+              <Text style={s.hello}>
+                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
+              </Text>
             </View>
             <View style={s.iconRow}>
               <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
@@ -180,7 +193,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* ✅ 모달을 화면 최상단에 두어 전체를 어둡게 */}
+      {/* 모달 */}
       <Modal
         visible={showAddTask}
         transparent
@@ -205,7 +218,7 @@ export default function HomeScreen() {
             />
             <View style={s.modalBtnRow}>
               <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
-                <Text style={s.addTaskModalBtnTxt}>추가    </Text>
+                <Text style={s.addTaskModalBtnTxt}>추가</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
                 <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
