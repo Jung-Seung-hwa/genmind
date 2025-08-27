@@ -1,4 +1,3 @@
-// app/(pases)/home.js
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 // API 주소 (환경변수/기본값)
 const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
@@ -15,6 +14,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,            // ✅ 추가
 } from "react-native";
 
 export default function HomeScreen() {
@@ -23,10 +23,11 @@ export default function HomeScreen() {
   useEffect(() => {
     // 로그인한 사용자 정보 가져오기
     fetch(`${BASE}/me`, { credentials: "include" })
-      .then(r => r.json())
-      .then(me => setUserName(me?.name || ""))
+      .then((r) => r.json())
+      .then((me) => setUserName(me?.name || ""))
       .catch(() => {});
   }, []);
+
   const [tasks, setTasks] = useState([
     { id: 1, text: "모든 회사 직원 사용 가능", done: false },
     { id: 2, text: "차별화", done: false },
@@ -34,6 +35,7 @@ export default function HomeScreen() {
     { id: 4, text: "일을 공유한사람들 체크하면 같이 체크공유?", done: false },
     { id: 5, text: "주간 보고서 작성하기", done: false },
   ]);
+
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
   const inputRef = useRef(null);
@@ -49,17 +51,12 @@ export default function HomeScreen() {
   );
 
   const toggleTask = useCallback((id) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   }, []);
 
   const addTask = useCallback(() => {
     if (!newTaskText.trim()) return;
-    setTasks((prev) => [
-      ...prev,
-      { id: Date.now(), text: newTaskText.trim(), done: false },
-    ]);
+    setTasks((prev) => [...prev, { id: Date.now(), text: newTaskText.trim(), done: false }]);
     setNewTaskText("");
     setShowAddTask(false);
   }, [newTaskText]);
@@ -75,10 +72,9 @@ export default function HomeScreen() {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // 중복 선언 제거
   const router = useRouter();
-  // 사람 아이콘 토글 메뉴 상태
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
@@ -87,9 +83,7 @@ export default function HomeScreen() {
         <View style={s.headerWrap}>
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
-              <Text style={s.hello}>
-                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
-              </Text>
+              <Text style={s.hello}>{userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}</Text>
             </View>
             <View style={s.iconRow}>
               <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
@@ -103,14 +97,15 @@ export default function HomeScreen() {
                 <Text style={s.iconTxt}>👤</Text>
               </TouchableOpacity>
             </View>
+
             {/* 사람 아이콘 메뉴 */}
             {showProfileMenu && (
               <View style={s.profileMenuWrap}>
-                <TouchableOpacity style={s.profileMenuBtn} onPress={() => {/* 개인정보수정 이동 */}}>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 개인정보수정 */ }}>
                   <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.profileMenuBtn} onPress={() => {/* 로그아웃 처리 */}}>
-                  <Text style={[s.profileMenuBtnTxt, { color: '#ef4444' }]}>로그아웃</Text>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 로그아웃 */ }}>
+                  <Text style={[s.profileMenuBtnTxt, { color: "#ef4444" }]}>로그아웃</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -118,7 +113,7 @@ export default function HomeScreen() {
 
           <View style={s.tipCard}>
             <Text style={s.tipTitle}>궁금한 것이 있으면 언제든 물어보세요</Text>
-            <TouchableOpacity style={s.tipBtn} onPress={() => router.replace('/chat')}>
+            <TouchableOpacity style={s.tipBtn} onPress={() => router.replace("/chat")}>
               <Text style={s.tipBtnTxt}>챗봇 열기</Text>
             </TouchableOpacity>
           </View>
@@ -126,125 +121,149 @@ export default function HomeScreen() {
 
         {/* 오늘 할 일 */}
         <View style={s.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={s.cardTitle}>오늘 할 일</Text>
             <TouchableOpacity style={s.addTaskBtn} onPress={() => setShowAddTask(true)}>
               <Text style={s.addTaskBtnTxt}>＋</Text>
             </TouchableOpacity>
           </View>
+
           <View style={{ marginTop: 10 }}>
             {tasks.map((t, idx) => (
-              <View key={t.id} style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}> 
-                <TouchableOpacity onPress={() => toggleTask(t.id)} activeOpacity={0.8} style={{ flexDirection: 'row', flex: 1, alignItems: 'center' }}>
+              <View key={t.id} style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}>
+                <TouchableOpacity
+                  onPress={() => toggleTask(t.id)}
+                  activeOpacity={0.8}
+                  style={{ flexDirection: "row", flex: 1, alignItems: "center" }}
+                >
                   <View style={[s.checkbox, t.done && s.checkboxOn]}>
                     {t.done ? <Text style={s.checkmark}>✓</Text> : null}
                   </View>
                   <View style={s.taskTextBox}>
-                    <Text
-                      style={[
-                        s.taskText,
-                        t.done && s.taskTextDone,
-                      ]}
-                      numberOfLines={1}
-                    >
+                    <Text style={[s.taskText, t.done && s.taskTextDone]} numberOfLines={1}>
                       {t.text}
                     </Text>
-                    {!!t.due && !t.done && (
-                      <Text style={s.taskDue}>⏰ {t.due}</Text>
-                    )}
+                    {!!t.due && !t.done && <Text style={s.taskDue}>⏰ {t.due}</Text>}
                   </View>
                 </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => { /* 공유 */ }} style={s.shareTaskBtn} activeOpacity={0.7}>
+                  <Text style={s.shareTaskBtnTxt}>공유</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => deleteTask(t.id)} style={s.deleteTaskBtn} activeOpacity={0.7}>
-                  <Text style={s.deleteTaskBtnTxt}><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg></Text>
+                  <Text style={s.deleteTaskBtnTxt}>삭제</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
-
-          {/* 할 일 추가 모달 */}
-          {showAddTask && (
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={s.modalOverlay}
-            >
-              <View style={s.modalBoxBetter}>
-                <Text style={s.modalTitle}>할 일 추가</Text>
-                <TextInput
-                  ref={inputRef}
-                  style={s.modalInput}
-                  value={newTaskText}
-                  onChangeText={setNewTaskText}
-                  placeholder="할 일을 입력하세요"
-                  returnKeyType="done"
-                  onSubmitEditing={addTask}
-                  autoFocus
-                />
-                <View style={s.modalBtnRow}>
-                  <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
-                    <Text style={s.addTaskModalBtnTxt}>추가</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
-                    <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          )}
-// ...existing code...
         </View>
 
         {/* 자주 묻는 질문 */}
         <View style={s.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={s.cardTitle}>Q. 자주 묻는 질문</Text>
-            <TouchableOpacity style={s.faqGoBtn} onPress={() => router.replace('/faq')} activeOpacity={0.7}>
-              <Text style={s.faqGoBtnTxt}>{'>'}</Text>
+            <TouchableOpacity style={s.faqGoBtn} onPress={() => router.replace("/faq")} activeOpacity={0.7}>
+              <Text style={s.faqGoBtnTxt}>{">"}</Text>
             </TouchableOpacity>
           </View>
           <View style={{ marginTop: 8 }}>
             {faqs.map((q, i) => (
               <View key={i} style={s.faqRow}>
                 <Text style={s.faqQ}>Q.</Text>
-                <Text style={s.faqText} numberOfLines={1}>{q}</Text>
+                <Text style={s.faqText} numberOfLines={1}>
+                  {q}
+                </Text>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
+
+      {/* ✅ 모달을 화면 최상단에 두어 전체를 어둡게 */}
+      <Modal
+        visible={showAddTask}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddTask(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={s.modalOverlay}
+        >
+          <View style={s.modalBoxBetter}>
+            <Text style={s.modalTitle}>할 일 추가</Text>
+            <TextInput
+              ref={inputRef}
+              style={s.modalInput}
+              value={newTaskText}
+              onChangeText={setNewTaskText}
+              placeholder="할 일을 입력하세요"
+              returnKeyType="done"
+              onSubmitEditing={addTask}
+              autoFocus
+            />
+            <View style={s.modalBtnRow}>
+              <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
+                <Text style={s.addTaskModalBtnTxt}>추가    </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
+                <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  shareTaskBtn: {
+    marginLeft: 0,
+    marginRight: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#e0e7ef",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  shareTaskBtnTxt: {
+    color: "#2563eb",
+    fontWeight: "700",
+    fontSize: 13,
+  },
   modalBoxBetter: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 28,
     minWidth: 320,
     maxWidth: 380,
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    elevation: 8
+    flexDirection: "column",
+    alignItems: "stretch",
+    elevation: 8,
   },
   modalTitle: {
-    fontWeight: '800',
+    fontWeight: "800",
     fontSize: 20,
     marginBottom: 6,
-    color: '#1f2a44',
-    textAlign: 'center',
+    color: "#1f2a44",
+    textAlign: "center",
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: "#d1d5db",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f7f9ff',
+    backgroundColor: "#f7f9ff",
     marginBottom: 0,
   },
   modalBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 8,
   },
   addTaskBtn: {
@@ -252,14 +271,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
   },
   addTaskBtnTxt: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     lineHeight: 24,
   },
   deleteTaskBtn: {
@@ -267,106 +286,57 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
   },
   deleteTaskBtnTxt: {
-    color: '#ef4444',
-    fontWeight: '700',
+    color: "#ef4444",
+    fontWeight: "700",
     fontSize: 13,
   },
+
+  // ✅ Modal 오버레이: 전체 화면 어둡게 + 포인터 차단
   modalOverlay: {
-    position: 'fixed',
-    left: 0, top: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    display: 'flex',
-    pointerEvents: 'auto',
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
   },
-  modalBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    minWidth: 320,
-    boxShadow: '0 10px 24px rgba(0,0,0,.15)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  },
-  addTaskModalBtn: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginLeft: 8,
-  },
-  addTaskModalBtnTxt: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  cancelTaskModalBtn: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginLeft: 8,
-  },
-  cancelTaskModalBtnTxt: {
-    color: '#334155',
-    fontWeight: '700',
-    fontSize: 15,
-  },
+
   safe: { flex: 1, backgroundColor: "#eaf2ff" },
   container: {
-  faqGoBtn: {
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: '#e0e7ef',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // ...기존 스타일 정의...
-  faqGoBtn: {
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: '#e0e7ef',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  faqGoBtnTxt: {
-    fontSize: 18,
-    color: '#2563eb',
-    fontWeight: 'bold',
-  },
-  faqGoBtnTxt: {
-    fontSize: 18,
-    color: '#2563eb',
-    fontWeight: 'bold',
-  },
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 24,
     gap: 14,
   },
+  faqGoBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "#e0e7ef",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  faqGoBtnTxt: {
+    fontSize: 18,
+    color: "#2563eb",
+    fontWeight: "bold",
+  },
 
   // Header
   headerWrap: { gap: 12 },
   profileMenuWrap: {
-    position: 'absolute',
+    position: "absolute",
     top: 48,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -378,12 +348,12 @@ const s = StyleSheet.create({
   profileMenuBtn: {
     paddingVertical: 12,
     paddingHorizontal: 18,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   profileMenuBtnTxt: {
     fontSize: 15,
-    color: '#2563eb',
-    fontWeight: '700',
+    color: "#2563eb",
+    fontWeight: "700",
   },
   headerRow: {
     flexDirection: "row",
@@ -394,9 +364,12 @@ const s = StyleSheet.create({
   hello: { fontSize: 20, fontWeight: "800", color: "#0b347a" },
   iconRow: { flexDirection: "row", gap: 8 },
   iconBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#ffffffaa",
-    alignItems: "center", justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconTxt: { fontSize: 18 },
 
@@ -413,7 +386,8 @@ const s = StyleSheet.create({
   tipTitle: { color: "#1f2a44", fontSize: 14, marginBottom: 10 },
   tipBtn: {
     backgroundColor: "#2563eb",
-    paddingVertical: 10, paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 999,
   },
   tipBtnTxt: { color: "#fff", fontWeight: "700" },
@@ -442,10 +416,14 @@ const s = StyleSheet.create({
     borderBottomColor: "#eef1f6",
   },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6,
-    borderWidth: 2, borderColor: "#c8d3ee",
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#c8d3ee",
     backgroundColor: "#f3f6ff",
-    alignItems: "center", justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 10,
   },
   checkboxOn: {
