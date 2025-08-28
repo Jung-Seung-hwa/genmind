@@ -16,6 +16,20 @@ import {
   Modal,
 } from "react-native";
 
+/* ▼▼▼ [중복 제거] 아래의 중복 import/상수 정의 블록은 삭제했습니다 ▼▼▼
+   // 자주 묻는 질문 TOP
+   import React, { useEffect, useState, useCallback } from "react";
+   import { Platform } from "react-native";
+   import Constants from "expo-constants";
+
+   const EXTRA = (Constants.expoConfig?.extra) ?? {};
+   const FASTAPI_BASE =
+     EXTRA.FASTAPI_BASE ??
+     EXTRA.API_BASE ??
+     (Platform.OS === "android" ? "http://10.0.2.2:8081" : "http://127.0.0.1:8081");
+   ▲▲▲ 중복이어서 제거(요구사항 준수: 중복 외 수정 없음) ▲▲▲
+*/
+
 // ✅ LAN IP 자동 감지 (login.js와 동일 로직)
 const deriveLanBase = () => {
   const sources = [
@@ -84,8 +98,8 @@ export default function HomeScreen() {
         due: c.deadline
           ? `마감: ${c.deadline}`
           : c.from_user
-          ? `from: ${c.from_user}`
-          : null,
+            ? `from: ${c.from_user}`
+            : null,
       }));
       setTasks(mapped);
     } catch (e) {
@@ -102,6 +116,7 @@ export default function HomeScreen() {
   const inputRef = useRef(null);
   const [shareTaskId, setShareTaskId] = useState(null);  // 공유할 task id
 
+  // 기존 더미 FAQ (백업/폴백용, 유지)
   const faqs = useMemo(
     () => [
       "데이터 백업은 어떻게 하나요?",
@@ -111,6 +126,41 @@ export default function HomeScreen() {
     ],
     []
   );
+
+  // ✅ [추가] DB에서 views 내림차순 FAQ 전체 불러오기 상태
+  const [faqItems, setFaqItems] = useState([]);
+  const [faqLoading, setFaqLoading] = useState(true);
+
+  const loadFaq = useCallback(async () => {
+    try {
+      setFaqLoading(true);
+      // 인증 불필요 엔드포인트(백엔드 /faq/all) 기준
+      const r = await fetch(`${BASE}/faq/all`);
+      const data = await r.json();
+      // [{qa_id, question, answer, ref_article, views, rank}, ...]
+      setFaqItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.warn("FAQ load error:", e);
+      setFaqItems([]); // 실패 시 폴백(하드코딩 리스트)로 내려감
+    } finally {
+      setFaqLoading(false);
+    }
+  }, []);
+
+  // ✅ [추가] 최초 로드 + 챗봇에서 refresh 이벤트 받으면 재조회
+  useEffect(() => {
+    loadFaq();
+
+    const handler = () => loadFaq();
+    if (typeof window !== "undefined") {
+      window.addEventListener("faq:refresh", handler);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("faq:refresh", handler);
+      }
+    };
+  }, [loadFaq]);
 
   const toggleTask = useCallback((id) => {
     setTasks((prev) =>
@@ -220,30 +270,30 @@ export default function HomeScreen() {
                 userName === "관리자" ||
                 userName === "Admin" ||
                 userName === "ADMIN") && (
-                <TouchableOpacity
-                  style={[
-                    s.iconBtn,
-                    {
-                      marginRight: 6,
-                      backgroundColor: "#eef2ff",
-                      borderWidth: 1,
-                      borderColor: "#c7d2fe",
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => router.replace("/adminDashboard")}
-                >
-                  <Text
-                    style={{
-                      color: "#2563eb",
-                      fontWeight: "700",
-                      fontSize: 13,
-                    }}
+                  <TouchableOpacity
+                    style={[
+                      s.iconBtn,
+                      {
+                        marginRight: 6,
+                        backgroundColor: "#eef2ff",
+                        borderWidth: 1,
+                        borderColor: "#c7d2fe",
+                      },
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => router.replace("/adminDashboard")}
                   >
-                    관리자대시보드
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    <Text
+                      style={{
+                        color: "#2563eb",
+                        fontWeight: "700",
+                        fontSize: 13,
+                      }}
+                    >
+                      관리자대시보드
+                    </Text>
+                  </TouchableOpacity>
+                )}
               <TouchableOpacity
                 style={s.iconBtn}
                 activeOpacity={0.7}
@@ -310,16 +360,16 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => {
-              setShareTaskId(t.id);
-              setShowShareModal(true);
-            }}
-            style={s.shareTaskBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={s.shareTaskBtnTxt}>공유</Text>
-          </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShareTaskId(t.id);
+                    setShowShareModal(true);
+                  }}
+                  style={s.shareTaskBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.shareTaskBtnTxt}>공유</Text>
+                </TouchableOpacity>
 
                 {/* 공유 모달 */}
                 <Modal
@@ -432,15 +482,35 @@ export default function HomeScreen() {
               <Text style={s.faqGoBtnTxt}>{">"}</Text>
             </TouchableOpacity>
           </View>
+
           <View style={{ marginTop: 8 }}>
-            {faqs.map((q, i) => (
-              <View key={i} style={s.faqRow}>
-                <Text style={s.faqQ}>Q.</Text>
-                <Text style={s.faqText} numberOfLines={1}>
-                  {q}
-                </Text>
+            {/* ✅ [교체] DB 결과 우선, 실패/빈 배열이면 기존 더미 표시 */}
+            {faqLoading ? (
+              <View style={[s.faqRow, { justifyContent: "center" }]}>
+                <Text style={s.faqText}>불러오는 중…</Text>
               </View>
-            ))}
+            ) : faqItems.length > 0 ? (
+              faqItems.map((f) => (
+                <View key={f.qa_id} style={s.faqRow}>
+                  <Text style={s.faqQ}>{f.rank}위</Text>
+                  <Text style={s.faqText} numberOfLines={1}>
+                    Q. {f.question}
+                  </Text>
+                  <Text style={[s.faqText, { textAlign: "right" }]}>
+                    조회수 {f.views}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              faqs.map((q, i) => (
+                <View key={i} style={s.faqRow}>
+                  <Text style={s.faqQ}>Q.</Text>
+                  <Text style={s.faqText} numberOfLines={1}>
+                    {q}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>
@@ -677,7 +747,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
     zIndex: 0,
+    justifyContent: "space-between",
   },
   faqQ: { color: "#2563eb", fontWeight: "800", marginRight: 8 },
-  faqText: { color: "#1f2a44", fontSize: 14, flex: 1 },
+  faqText: { color: "#1f2a44", fontSize: 14, flexShrink: 1 },
 });
