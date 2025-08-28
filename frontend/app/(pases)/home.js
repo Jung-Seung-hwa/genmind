@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
-// API 주소 (환경변수/기본값)
-const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import {
   View,
@@ -17,15 +17,53 @@ import {
   Modal,            // ✅ 추가
 } from "react-native";
 
+// ✅ LAN IP 자동 감지 (login.js와 동일 로직)
+const deriveLanBase = () => {
+  const sources = [
+    Constants?.expoConfig?.hostUri,
+    Constants?.expoGoConfig?.hostUri,
+    Constants?.manifest?.debuggerHost,
+  ].filter(Boolean);
+
+  for (const s of sources) {
+    const host = String(s).split(":")[0];
+    if (
+      /^10\.\d+\.\d+\.\d+$/.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(host) ||
+      /^192\.168\.\d+\.\d+$/.test(host)
+    ) {
+      return `http://${host}:8000`;
+    }
+  }
+  return "http://localhost:8000"; // fallback
+};
+
+const BASE = deriveLanBase();
+
 export default function HomeScreen() {
   // 사용자명 상태
   const [userName, setUserName] = useState("");
   useEffect(() => {
-    // 로그인한 사용자 정보 가져오기
-    fetch(`${BASE}/me`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((me) => setUserName(me?.name || ""))
-      .catch(() => {});
+    const fetchMe = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) return;
+        const res = await fetch(`${BASE}/auth/me`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) throw new Error("인증 실패");
+        const me = await res.json();
+        setUserName(me?.name || "");
+      } catch (e) {
+        setUserName("");
+      }
+    };
+    fetchMe();
   }, []);
 
   const [tasks, setTasks] = useState([
@@ -101,9 +139,16 @@ export default function HomeScreen() {
               <Text style={s.hello}>{userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}</Text>
             </View>
             <View style={s.iconRow}>
-              <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
-                <Text style={s.iconTxt}>🔔</Text>
-              </TouchableOpacity>
+              {/* 관리자 계정이면 관리자 대시보드 이동 버튼 */}
+              {(userName === 'admin' || userName === '관리자' || userName === 'Admin' || userName === 'ADMIN') && (
+                <TouchableOpacity
+                  style={[s.iconBtn, { marginRight: 6, backgroundColor: '#eef2ff', borderWidth: 1, borderColor: '#c7d2fe' }]}
+                  activeOpacity={0.8}
+                  onPress={() => router.replace('/adminDashboard')}
+                >
+                  <Text style={{ color: '#2563eb', fontWeight: '700', fontSize: 13 }}>관리자대시보드</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={s.iconBtn}
                 activeOpacity={0.7}
@@ -115,14 +160,63 @@ export default function HomeScreen() {
 
             {/* 사람 아이콘 메뉴 */}
             {showProfileMenu && (
-              <View style={s.profileMenuWrap}>
-                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 개인정보수정 */ }}>
-                  <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
+              <Modal
+                visible={showProfileMenu}
+                transparent
+                animationType="none"
+                onRequestClose={() => setShowProfileMenu(false)}
+              >
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    top: 40,
+                    left: 0,
+                    right: -15,
+                    bottom: 0,
+                    zIndex: 99999,
+                  }}
+                  activeOpacity={1}
+                  onPress={() => setShowProfileMenu(false)}
+                >
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 72,
+                      right: 32,
+                      minWidth: 180,
+                      backgroundColor: '#fff',
+                      borderRadius: 12,
+                      boxShadow: '0 12px 32px rgba(0,0,0,0.22)',
+                      zIndex: 99999,
+                      elevation: 999,
+                      borderWidth: 1,
+                      borderColor: '#e5e7eb',
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 개인정보수정 */ }}>
+                      <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.profileMenuBtn}
+                      onPress={() => {
+                        // 모든 쿠키 삭제 (웹 환경)
+                        if (typeof document !== 'undefined') {
+                          document.cookie.split(';').forEach(function(c) {
+                            document.cookie = c
+                              .replace(/^ +/, '')
+                              .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+                          });
+                        }
+                        setShowProfileMenu(false);
+                        router.replace('/domain');
+                      }}
+                    >
+                      <Text style={[s.profileMenuBtnTxt, { color: "#ef4444" }]}>로그아웃</Text>
+                    </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 로그아웃 */ }}>
-                  <Text style={[s.profileMenuBtnTxt, { color: "#ef4444" }]}>로그아웃</Text>
-                </TouchableOpacity>
-              </View>
+              </Modal>
             )}
           </View>
 
