@@ -10,8 +10,11 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function FAQScreen() {
+  const router = useRouter();
+
   // 카테고리
   const categories = useMemo(
     () => [
@@ -116,13 +119,23 @@ export default function FAQScreen() {
   const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
 
   // 검색 안내 메시지
-  const showNoResult =
-    query.trim().length >= 2 && filtered.length === 0;
-  const showTypeMore =
-    query.trim().length > 0 && query.trim().length < 2;
+  const showNoResult = query.trim().length >= 2 && filtered.length === 0;
+  const showTypeMore = query.trim().length > 0 && query.trim().length < 2;
 
   return (
     <SafeAreaView style={s.safe}>
+      {/* 상단 뒤로가기(홈) */}
+      <View style={s.headerRow}>
+        <TouchableOpacity
+          onPress={() => router.push("/home")}
+          style={s.backBtn}
+          activeOpacity={0.85}
+        >
+          <Text style={s.backIcon}>←</Text>
+          <Text style={s.backTxt}>홈으로</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={s.container}>
         {/* 검색 영역 */}
         <View style={s.searchCard}>
@@ -169,9 +182,7 @@ export default function FAQScreen() {
                   style={[s.catBtn, active && s.catBtnActive]}
                   activeOpacity={0.9}
                 >
-                  <Text style={[s.catText, active && s.catTextActive]}>
-                    {c}
-                  </Text>
+                  <Text style={[s.catText, active && s.catTextActive]}>{c}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -181,14 +192,19 @@ export default function FAQScreen() {
           <View style={s.listCol}>
             <Text style={s.sectionTitle}>질문 TOP</Text>
             <View style={s.qaList}>
-              {(pageSlice.length ? pageSlice : (query.trim() ? [] : (allQuestions[activeCategory] || []).slice(0, PAGE_SIZE))).map(
-                (q, idx) => (
-                  <TouchableOpacity key={`${q}-${idx}`} style={s.qaRow} activeOpacity={0.9}>
-                    <Text style={s.qIcon}>Q</Text>
-                    <Text style={s.qText} numberOfLines={1}>{q}</Text>
-                  </TouchableOpacity>
-                )
-              )}
+              {(pageSlice.length
+                ? pageSlice
+                : query.trim()
+                ? []
+                : (allQuestions[activeCategory] || []).slice(0, PAGE_SIZE)
+              ).map((q, idx) => (
+                <TouchableOpacity key={`${q}-${idx}`} style={s.qaRow} activeOpacity={0.9}>
+                  <Text style={s.qIcon}>Q</Text>
+                  <Text style={s.qText} numberOfLines={1}>
+                    {q}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
             {/* 하단 페이징 */}
@@ -209,7 +225,9 @@ export default function FAQScreen() {
                     onPress={() => setPage(n)}
                     style={[s.pageNum, n === pageClamped && s.pageNumActive]}
                   >
-                    <Text style={[s.pageNumTxt, n === pageClamped && s.pageNumTxtActive]}>
+                    <Text
+                      style={[s.pageNumTxt, n === pageClamped && s.pageNumTxtActive]}
+                    >
                       {n}
                     </Text>
                   </TouchableOpacity>
@@ -219,7 +237,10 @@ export default function FAQScreen() {
               <TouchableOpacity
                 onPress={goNext}
                 disabled={pageClamped === totalPages}
-                style={[s.pageBtn, pageClamped === totalPages && s.pageBtnDisabled]}
+                style={[
+                  s.pageBtn,
+                  pageClamped === totalPages && s.pageBtnDisabled,
+                ]}
               >
                 <Text style={s.pageBtnTxt}>›</Text>
               </TouchableOpacity>
@@ -245,6 +266,26 @@ const cardShadow = Platform.select({
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f7f9fc" },
+
+  // 상단 헤더(홈으로)
+  headerRow: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: "#f7f9fc",
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#e8eefc",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backIcon: { fontSize: 16, color: "#1d4ed8", marginRight: 6, fontWeight: "700" },
+  backTxt: { fontSize: 14, color: "#1d4ed8", fontWeight: "800" },
+
   container: { padding: 16, gap: 12 },
 
   // 검색 카드
