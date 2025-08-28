@@ -288,6 +288,62 @@ export default function HomeScreen() {
               >
                 <Text style={s.iconTxt}>👤</Text>
               </TouchableOpacity>
+              {/* 프로필 드롭다운 Modal */}
+              <Modal
+                visible={showProfileMenu}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowProfileMenu(false)}
+              >
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  activeOpacity={1}
+                  onPress={() => setShowProfileMenu(false)}
+                >
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 110,
+                      right: 18,
+                      minWidth: 160,
+                      backgroundColor: '#fff',
+                      borderRadius: 12,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.12,
+                      shadowRadius: 12,
+                      shadowOffset: { width: 0, height: 6 },
+                      elevation: 8,
+                      borderWidth: 1,
+                      borderColor: '#e5e7eb',
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <TouchableOpacity style={[s.profileMenuBtn, {paddingVertical:12, paddingHorizontal:18}]} onPress={() => {
+                      setShowProfileMenu(false);
+                      router.replace('/profile_edit');
+                    }}>
+                      <Text style={[s.profileMenuBtnTxt, {fontSize:15}]}>개인정보수정</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.profileMenuBtn, {paddingVertical:12, paddingHorizontal:18}]}
+                      onPress={() => {
+                        // 모든 쿠키 삭제 (웹 환경)
+                        if (typeof document !== 'undefined') {
+                          document.cookie.split(';').forEach(function(c) {
+                            document.cookie = c
+                              .replace(/^ +/, '')
+                              .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+                          });
+                        }
+                        setShowProfileMenu(false);
+                        router.replace('/domain');
+                      }}
+                    >
+                      <Text style={[s.profileMenuBtnTxt, { color: "#ef4444", fontSize:15 }]}>로그아웃</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
             </View>
           </View>
 

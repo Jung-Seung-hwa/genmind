@@ -225,7 +225,7 @@ export default function ProfileEditScreen() {
           {loading ? <ActivityIndicator /> : <Text style={s.secondaryBtnText}>비밀번호 변경</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.linkBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={s.linkBtn} onPress={() => router.replace('/home')}>
           <Text style={s.linkText}>← 돌아가기</Text>
         </TouchableOpacity>
       </ScrollView>
