@@ -21,7 +21,7 @@ from api import files
 from db.session import Base, engine, SessionLocal  # SessionLocal이 있다면 가져와서 헬스체크에 사용
 from models import company, user  # noqa: F401 (테이블 선언 보장)
 from api import chat  # 기존 라우터 (prefix 가 /api/chat 인지 확인)
-from api import auth, checklist
+from api import auth, checklist, user
 
 # ------------------------------------------------------------------------------
 # FastAPI 앱 생성
@@ -65,6 +65,7 @@ app.include_router(auth.router)
 app.include_router(checklist.router)
 app.include_router(faq.router)
 app.include_router(files.router)
+app.include_router(user.router, prefix="")  
 
 # ------------------------------------------------------------------------------
 # 기본/헬스체크/버전 엔드포인트

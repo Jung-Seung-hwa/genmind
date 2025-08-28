@@ -10,11 +10,10 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
-  Image,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Modal,            // ✅ 추가
+  Modal,
 } from "react-native";
 
 // ✅ LAN IP 자동 감지 (login.js와 동일 로직)
@@ -51,9 +50,9 @@ export default function HomeScreen() {
         const res = await fetch(`${BASE}/auth/me`, {
           method: "GET",
           headers: {
-            "Accept": "application/json",
+            Accept: "application/json",
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
         if (!res.ok) throw new Error("인증 실패");
@@ -113,7 +112,9 @@ export default function HomeScreen() {
   );
 
   const toggleTask = useCallback((id) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
   }, []);
 
   // 체크리스트 추가 (POST)
@@ -173,21 +174,32 @@ export default function HomeScreen() {
 
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
   // 공유 모달 상태
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareSearch, setShareSearch] = useState("");
-  const [shareUsers, setShareUsers] = useState([
-    { id: 1, name: "김철수", email: "chulsoo@company.com" },
-    { id: 2, name: "이영희", email: "younghee@company.com" },
-    { id: 3, name: "박민수", email: "minsoo@company.com" },
-    { id: 4, name: "최지은", email: "jieun@company.com" },
-    { id: 5, name: "홍길동", email: "gildong@company.com" },
-    { id: 6, name: "정승화", email: "seunghwa@company.com" },
-    { id: 7, name: "오유진", email: "yujin@company.com" },
-    { id: 8, name: "강다현", email: "dahyun@company.com" },
-    { id: 9, name: "신동엽", email: "dongyeop@company.com" },
-    { id: 10, name: "문지민", email: "jimin@company.com" },
-  ]);
+  const [shareUsers, setShareUsers] = useState([]);
+
+  // ✅ 같은 회사(comp_idx) 직원 불러오기
+  useEffect(() => {
+    const fetchShareUsers = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) return;
+        const res = await fetch(`${BASE}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("직원 목록 불러오기 실패");
+        const data = await res.json();
+        setShareUsers(data || []);
+      } catch (e) {
+        console.log("❌ 직원 목록 불러오기 실패", e);
+      }
+    };
+    if (showShareModal) {
+      fetchShareUsers();
+    }
+  }, [showShareModal]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -197,17 +209,38 @@ export default function HomeScreen() {
         <View style={s.headerWrap}>
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
-              <Text style={s.hello}>{userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}</Text>
+              <Text style={s.hello}>
+                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
+              </Text>
             </View>
             <View style={s.iconRow}>
               {/* 관리자 계정이면 관리자 대시보드 이동 버튼 */}
-              {(userName === 'admin' || userName === '관리자' || userName === 'Admin' || userName === 'ADMIN') && (
+              {(userName === "admin" ||
+                userName === "관리자" ||
+                userName === "Admin" ||
+                userName === "ADMIN") && (
                 <TouchableOpacity
-                  style={[s.iconBtn, { marginRight: 6, backgroundColor: '#eef2ff', borderWidth: 1, borderColor: '#c7d2fe' }]}
+                  style={[
+                    s.iconBtn,
+                    {
+                      marginRight: 6,
+                      backgroundColor: "#eef2ff",
+                      borderWidth: 1,
+                      borderColor: "#c7d2fe",
+                    },
+                  ]}
                   activeOpacity={0.8}
-                  onPress={() => router.replace('/adminDashboard')}
+                  onPress={() => router.replace("/adminDashboard")}
                 >
-                  <Text style={{ color: '#2563eb', fontWeight: '700', fontSize: 13 }}>관리자대시보드</Text>
+                  <Text
+                    style={{
+                      color: "#2563eb",
+                      fontWeight: "700",
+                      fontSize: 13,
+                    }}
+                  >
+                    관리자대시보드
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -218,72 +251,14 @@ export default function HomeScreen() {
                 <Text style={s.iconTxt}>👤</Text>
               </TouchableOpacity>
             </View>
-
-            {/* 사람 아이콘 메뉴 */}
-            {showProfileMenu && (
-              <Modal
-                visible={showProfileMenu}
-                transparent
-                animationType="none"
-                onRequestClose={() => setShowProfileMenu(false)}
-              >
-                <TouchableOpacity
-                  style={{
-                    position: 'absolute',
-                    top: 40,
-                    left: 0,
-                    right: -15,
-                    bottom: 0,
-                    zIndex: 99999,
-                  }}
-                  activeOpacity={1}
-                  onPress={() => setShowProfileMenu(false)}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 72,
-                      right: 32,
-                      minWidth: 180,
-                      backgroundColor: '#fff',
-                      borderRadius: 12,
-                      boxShadow: '0 12px 32px rgba(0,0,0,0.22)',
-                      zIndex: 99999,
-                      elevation: 999,
-                      borderWidth: 1,
-                      borderColor: '#e5e7eb',
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 개인정보수정 */ }}>
-                      <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={s.profileMenuBtn}
-                      onPress={() => {
-                        // 모든 쿠키 삭제 (웹 환경)
-                        if (typeof document !== 'undefined') {
-                          document.cookie.split(';').forEach(function(c) {
-                            document.cookie = c
-                              .replace(/^ +/, '')
-                              .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-                          });
-                        }
-                        setShowProfileMenu(false);
-                        router.replace('/domain');
-                      }}
-                    >
-                      <Text style={[s.profileMenuBtnTxt, { color: "#ef4444" }]}>로그아웃</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              </Modal>
-            )}
           </View>
 
           <View style={s.tipCard}>
             <Text style={s.tipTitle}>궁금한 것이 있으면 언제든 물어보세요</Text>
-            <TouchableOpacity style={s.tipBtn} onPress={() => router.replace("/chat")}>
+            <TouchableOpacity
+              style={s.tipBtn}
+              onPress={() => router.replace("/chat")}
+            >
               <Text style={s.tipBtnTxt}>챗봇 열기</Text>
             </TouchableOpacity>
           </View>
@@ -291,16 +266,28 @@ export default function HomeScreen() {
 
         {/* 오늘 할 일 */}
         <View style={s.card}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <Text style={s.cardTitle}>오늘 할 일</Text>
-            <TouchableOpacity style={s.addTaskBtn} onPress={() => setShowAddTask(true)}>
+            <TouchableOpacity
+              style={s.addTaskBtn}
+              onPress={() => setShowAddTask(true)}
+            >
               <Text style={s.addTaskBtnTxt}>＋</Text>
             </TouchableOpacity>
           </View>
 
           <View style={{ marginTop: 10 }}>
             {tasks.map((t, idx) => (
-              <View key={t.id} style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}>
+              <View
+                key={t.id}
+                style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}
+              >
                 <TouchableOpacity
                   onPress={() => toggleTask(t.id)}
                   activeOpacity={0.8}
@@ -310,66 +297,112 @@ export default function HomeScreen() {
                     {t.done ? <Text style={s.checkmark}>✓</Text> : null}
                   </View>
                   <View style={s.taskTextBox}>
-                    <Text style={[s.taskText, t.done && s.taskTextDone]} numberOfLines={1}>
+                    <Text
+                      style={[s.taskText, t.done && s.taskTextDone]}
+                      numberOfLines={1}
+                    >
                       {t.text}
                     </Text>
-                    {!!t.due && !t.done && <Text style={s.taskDue}>⏰ {t.due}</Text>}
+                    {!!t.due && !t.done && (
+                      <Text style={s.taskDue}>⏰ {t.due}</Text>
+                    )}
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setShowShareModal(true)} style={s.shareTaskBtn} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={() => setShowShareModal(true)}
+                  style={s.shareTaskBtn}
+                  activeOpacity={0.7}
+                >
                   <Text style={s.shareTaskBtnTxt}>공유</Text>
                 </TouchableOpacity>
-      {/* 공유 모달 */}
-      <Modal
-        visible={showShareModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowShareModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={s.modalOverlay}
-        >
-          <View style={s.modalBoxBetter}>
-            <Text style={s.modalTitle}>공유할 사람 선택</Text>
-            <TextInput
-              style={[s.modalInput, { marginBottom: 10 }]}
-              value={shareSearch}
-              onChangeText={setShareSearch}
-              placeholder="이름 또는 이메일 검색"
-              autoFocus
-            />
-            <ScrollView style={{ maxHeight: 220, marginBottom: 8 }}>
-              {shareUsers
-                .filter(u =>
-                  !shareSearch.trim() ||
-                  u.name.includes(shareSearch.trim()) ||
-                  u.email.includes(shareSearch.trim())
-                )
-                .map(u => (
-                  <View key={u.id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: "700", color: "#1f2a44", fontSize: 15 }}>{u.name}</Text>
-                      <Text style={{ color: "#64748b", fontSize: 13 }}>{u.email}</Text>
-                    </View>
-                    {/* 체크박스 등 추가 가능 */}
-                  </View>
-                ))}
-            </ScrollView>
-            <View style={s.modalBtnRow}>
-              <TouchableOpacity style={s.addTaskModalBtn} onPress={() => setShowShareModal(false)}>
-                <Text style={s.addTaskModalBtnTxt}>확인       </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowShareModal(false)}>
-                <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
-                <TouchableOpacity onPress={() => deleteTask(t.id)} style={s.deleteTaskBtn} activeOpacity={0.7}>
+                {/* 공유 모달 */}
+                <Modal
+                  visible={showShareModal}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowShareModal(false)}
+                >
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    style={s.modalOverlay}
+                  >
+                    <View style={s.modalBoxBetter}>
+                      <Text style={s.modalTitle}>공유할 사람 선택</Text>
+                      <TextInput
+                        style={[s.modalInput, { marginBottom: 10 }]}
+                        value={shareSearch}
+                        onChangeText={setShareSearch}
+                        placeholder="이름 또는 이메일 검색"
+                        autoFocus
+                      />
+                      <ScrollView
+                        style={{ maxHeight: 220, marginBottom: 8 }}
+                      >
+                        {shareUsers
+                          .filter(
+                            (u) =>
+                              !shareSearch.trim() ||
+                              u.name.includes(shareSearch.trim()) ||
+                              u.email.includes(shareSearch.trim())
+                          )
+                          .map((u) => (
+                            <View
+                              key={u.id}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingVertical: 8,
+                                borderBottomWidth: 1,
+                                borderBottomColor: "#f1f5f9",
+                              }}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    fontWeight: "700",
+                                    color: "#1f2a44",
+                                    fontSize: 15,
+                                  }}
+                                >
+                                  {u.name}
+                                </Text>
+                                <Text
+                                  style={{
+                                    color: "#64748b",
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {u.email}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                      </ScrollView>
+                      <View style={s.modalBtnRow}>
+                        <TouchableOpacity
+                          style={s.addTaskModalBtn}
+                          onPress={() => setShowShareModal(false)}
+                        >
+                          <Text style={s.addTaskModalBtnTxt}>확인 </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={s.cancelTaskModalBtn}
+                          onPress={() => setShowShareModal(false)}
+                        >
+                          <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </KeyboardAvoidingView>
+                </Modal>
+
+                <TouchableOpacity
+                  onPress={() => deleteTask(t.id)}
+                  style={s.deleteTaskBtn}
+                  activeOpacity={0.7}
+                >
                   <Text style={s.deleteTaskBtnTxt}>삭제</Text>
                 </TouchableOpacity>
               </View>
@@ -379,9 +412,19 @@ export default function HomeScreen() {
 
         {/* 자주 묻는 질문 */}
         <View style={s.card}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <Text style={s.cardTitle}>Q. 자주 묻는 질문</Text>
-            <TouchableOpacity style={s.faqGoBtn} onPress={() => router.replace("/faq")} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={s.faqGoBtn}
+              onPress={() => router.replace("/faq")}
+              activeOpacity={0.7}
+            >
               <Text style={s.faqGoBtnTxt}>{">"}</Text>
             </TouchableOpacity>
           </View>
@@ -398,7 +441,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* ✅ 모달을 화면 최상단에 두어 전체를 어둡게 */}
+      {/* 할 일 추가 모달 */}
       <Modal
         visible={showAddTask}
         transparent
@@ -423,9 +466,12 @@ export default function HomeScreen() {
             />
             <View style={s.modalBtnRow}>
               <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
-                <Text style={s.addTaskModalBtnTxt}>추가    </Text>
+                <Text style={s.addTaskModalBtnTxt}>추가 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
+              <TouchableOpacity
+                style={s.cancelTaskModalBtn}
+                onPress={() => setShowAddTask(false)}
+              >
                 <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
               </TouchableOpacity>
             </View>
@@ -514,8 +560,6 @@ const s = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
-
-  // ✅ Modal 오버레이: 전체 화면 어둡게 + 포인터 차단
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
@@ -523,7 +567,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     padding: 16,
   },
-
   safe: { flex: 1, backgroundColor: "#eaf2ff" },
   container: {
     paddingHorizontal: 16,
@@ -545,34 +588,7 @@ const s = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "bold",
   },
-
-  // Header
   headerWrap: { gap: 12 },
-  profileMenuWrap: {
-    position: "absolute",
-    top: 48,
-    right: 0,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-    paddingVertical: 4,
-    minWidth: 120,
-    zIndex: 10,
-  },
-  profileMenuBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    alignItems: "flex-start",
-  },
-  profileMenuBtnTxt: {
-    fontSize: 15,
-    color: "#2563eb",
-    fontWeight: "700",
-  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -590,7 +606,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   iconTxt: { fontSize: 18 },
-
   tipCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -609,8 +624,6 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   tipBtnTxt: { color: "#fff", fontWeight: "700" },
-
-  // Card base
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -622,8 +635,6 @@ const s = StyleSheet.create({
     zIndex: 0,
   },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0b347a" },
-
-  // Tasks
   taskRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -653,18 +664,6 @@ const s = StyleSheet.create({
   taskText: { color: "#1f2a44", fontSize: 15, fontWeight: "600" },
   taskTextDone: { color: "#9aa9c2", textDecorationLine: "line-through" },
   taskDue: { marginTop: 4, color: "#f97316", fontSize: 12 },
-
-  secondaryBtn: {
-    marginTop: 12,
-    alignSelf: "flex-start",
-    backgroundColor: "#e6f0ff",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  secondaryBtnTxt: { color: "#2563eb", fontWeight: "700" },
-
-  // FAQ
   faqRow: {
     backgroundColor: "#f7f9ff",
     borderRadius: 12,
