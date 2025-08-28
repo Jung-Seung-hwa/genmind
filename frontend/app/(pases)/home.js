@@ -100,6 +100,7 @@ export default function HomeScreen() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
   const inputRef = useRef(null);
+  const [shareTaskId, setShareTaskId] = useState(null);  // 공유할 task id
 
   const faqs = useMemo(
     () => [
@@ -309,13 +310,16 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => setShowShareModal(true)}
-                  style={s.shareTaskBtn}
-                  activeOpacity={0.7}
-                >
-                  <Text style={s.shareTaskBtnTxt}>공유</Text>
-                </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setShareTaskId(t.id);
+              setShowShareModal(true);
+            }}
+            style={s.shareTaskBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={s.shareTaskBtnTxt}>공유</Text>
+          </TouchableOpacity>
 
                 {/* 공유 모달 */}
                 <Modal
