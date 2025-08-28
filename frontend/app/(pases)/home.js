@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";   // ✅ 추가
+// API 주소 (환경변수/기본값)
+const BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
 import { useRouter } from "expo-router";
 import {
   View,
@@ -10,176 +10,35 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Image,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  Alert,
+  Modal,            // ✅ 추가
 } from "react-native";
 
-// ✅ LAN IP 자동 감지 (login.js와 동일 로직)
-const deriveLanBase = () => {
-  const sources = [
-    Constants?.expoConfig?.hostUri,
-    Constants?.expoGoConfig?.hostUri,
-    Constants?.manifest?.debuggerHost,
-  ].filter(Boolean);
-
-  for (const s of sources) {
-    const host = String(s).split(":")[0];
-    if (
-      /^10\.\d+\.\d+\.\d+$/.test(host) ||
-      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(host) ||
-      /^192\.168\.\d+\.\d+$/.test(host)
-    ) {
-      return `http://${host}:8000`;
-    }
-  }
-  return "http://localhost:8000"; // fallback
-};
-
-const BASE = deriveLanBase();
-
 export default function HomeScreen() {
+  // 사용자명 상태
   const [userName, setUserName] = useState("");
-  const [tasks, setTasks] = useState([]); // DB에서 불러온 체크리스트
+  useEffect(() => {
+    // 로그인한 사용자 정보 가져오기
+    fetch(`${BASE}/me`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((me) => setUserName(me?.name || ""))
+      .catch(() => {});
+  }, []);
+
+  const [tasks, setTasks] = useState([
+    { id: 1, text: "모든 회사 직원 사용 가능", done: false },
+    { id: 2, text: "차별화", done: false },
+    { id: 3, text: "그러면 투두 리스트 피그마처럼 공유", done: false, due: "from : 정승화" },
+    { id: 4, text: "일을 공유한사람들 체크하면 같이 체크공유?", done: false },
+    { id: 5, text: "주간 보고서 작성하기", done: false },
+  ]);
+
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
   const inputRef = useRef(null);
-  const router = useRouter();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-
-  // 내 정보 가져오기
-  useEffect(() => {
-    const fetchMe = async () => {
-      try {
-        const token = await AsyncStorage.getItem("access_token");
-        console.log("👉 BASE_URL:", BASE);
-        console.log("👉 access_token:", token);
-
-        if (!token) return;
-        const res = await fetch(`${BASE}/auth/me`, {
-          method: "GET",
-          headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-        if (!res.ok) throw new Error("인증 실패");
-        const me = await res.json();
-        setUserName(me?.name || "");
-      } catch (e) {
-        console.log("❌ me 불러오기 실패:", e);
-      }
-    };
-    fetchMe();
-  }, []);
-
-  // 체크리스트 불러오기
-  const fetchChecklist = async () => {
-    try {
-      const token = await AsyncStorage.getItem("access_token");
-      if (!token) return;
-      const res = await fetch(`${BASE}/checklist`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("체크리스트 불러오기 실패");
-      const data = await res.json();
-      const mapped = data.map((c) => ({
-        id: c.item_id,
-        text: c.item,
-        done: !!c.is_done,
-        due: c.deadline
-          ? `마감: ${c.deadline}`
-          : c.from_user
-          ? `from: ${c.from_user}`
-          : null,
-      }));
-      setTasks(mapped);
-    } catch (e) {
-      console.log("❌ 체크리스트 불러오기 실패:", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchChecklist();
-  }, []);
-
-  // ✅ 체크리스트 추가 (POST)
-  const addTask = useCallback(async () => {
-    if (!newTaskText.trim()) return;
-    try {
-      const token = await AsyncStorage.getItem("access_token");
-      if (!token) return;
-      const res = await fetch(`${BASE}/checklist`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ item: newTaskText.trim() }),
-      });
-      if (!res.ok) throw new Error("추가 실패");
-      const newItem = await res.json();
-      setTasks((prev) => [
-        {
-          id: newItem.item_id,
-          text: newItem.item,
-          done: newItem.is_done,
-          due: newItem.deadline ? `마감: ${newItem.deadline}` : null,
-        },
-        ...prev,
-      ]);
-      setNewTaskText("");
-      setShowAddTask(false);
-    } catch (e) {
-      Alert.alert("오류", "체크리스트 추가 실패");
-    }
-  }, [newTaskText]);
-
-  // ✅ 체크리스트 완료 토글 (PUT)
-  const toggleTask = useCallback(async (id) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    try {
-      const token = await AsyncStorage.getItem("access_token");
-      if (!token) return;
-      const res = await fetch(`${BASE}/checklist/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ is_done: !task.done }),
-      });
-      if (!res.ok) throw new Error("업데이트 실패");
-      const updated = await res.json();
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id ? { ...t, done: updated.is_done } : t
-        )
-      );
-    } catch (e) {
-      Alert.alert("오류", "체크리스트 업데이트 실패");
-    }
-  }, [tasks]);
-
-  // ✅ 체크리스트 삭제 (DELETE)
-  const deleteTask = useCallback(async (id) => {
-    try {
-      const token = await AsyncStorage.getItem("access_token");
-      if (!token) return;
-      const res = await fetch(`${BASE}/checklist/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("삭제 실패");
-      setTasks((prev) => prev.filter((t) => t.id !== id));
-    } catch (e) {
-      Alert.alert("오류", "체크리스트 삭제 실패");
-    }
-  }, []);
 
   const faqs = useMemo(
     () => [
@@ -191,6 +50,46 @@ export default function HomeScreen() {
     []
   );
 
+  const toggleTask = useCallback((id) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  }, []);
+
+  const addTask = useCallback(() => {
+    if (!newTaskText.trim()) return;
+    setTasks((prev) => [...prev, { id: Date.now(), text: newTaskText.trim(), done: false }]);
+    setNewTaskText("");
+    setShowAddTask(false);
+  }, [newTaskText]);
+
+  // 포커스 자동
+  useEffect(() => {
+    if (showAddTask && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showAddTask]);
+
+  const deleteTask = useCallback((id) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const router = useRouter();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // 공유 모달 상태
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareSearch, setShareSearch] = useState("");
+  const [shareUsers, setShareUsers] = useState([
+    { id: 1, name: "김철수", email: "chulsoo@company.com" },
+    { id: 2, name: "이영희", email: "younghee@company.com" },
+    { id: 3, name: "박민수", email: "minsoo@company.com" },
+    { id: 4, name: "최지은", email: "jieun@company.com" },
+    { id: 5, name: "홍길동", email: "gildong@company.com" },
+    { id: 6, name: "정승화", email: "seunghwa@company.com" },
+    { id: 7, name: "오유진", email: "yujin@company.com" },
+    { id: 8, name: "강다현", email: "dahyun@company.com" },
+    { id: 9, name: "신동엽", email: "dongyeop@company.com" },
+    { id: 10, name: "문지민", email: "jimin@company.com" },
+  ]);
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
@@ -199,9 +98,7 @@ export default function HomeScreen() {
         <View style={s.headerWrap}>
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
-              <Text style={s.hello}>
-                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
-              </Text>
+              <Text style={s.hello}>{userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}</Text>
             </View>
             <View style={s.iconRow}>
               <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
@@ -216,12 +113,13 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* 사람 아이콘 메뉴 */}
             {showProfileMenu && (
               <View style={s.profileMenuWrap}>
-                <TouchableOpacity style={s.profileMenuBtn}>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 개인정보수정 */ }}>
                   <Text style={s.profileMenuBtnTxt}>개인정보수정</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.profileMenuBtn}>
+                <TouchableOpacity style={s.profileMenuBtn} onPress={() => { /* 로그아웃 */ }}>
                   <Text style={[s.profileMenuBtnTxt, { color: "#ef4444" }]}>로그아웃</Text>
                 </TouchableOpacity>
               </View>
@@ -260,13 +158,61 @@ export default function HomeScreen() {
                     <Text style={[s.taskText, t.done && s.taskTextDone]} numberOfLines={1}>
                       {t.text}
                     </Text>
-                    {!!t.due && !t.done && <Text style={s.taskDue}>{t.due}</Text>}
+                    {!!t.due && !t.done && <Text style={s.taskDue}>⏰ {t.due}</Text>}
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={s.shareTaskBtn} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => setShowShareModal(true)} style={s.shareTaskBtn} activeOpacity={0.7}>
                   <Text style={s.shareTaskBtnTxt}>공유</Text>
                 </TouchableOpacity>
+      {/* 공유 모달 */}
+      <Modal
+        visible={showShareModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={s.modalOverlay}
+        >
+          <View style={s.modalBoxBetter}>
+            <Text style={s.modalTitle}>공유할 사람 선택</Text>
+            <TextInput
+              style={[s.modalInput, { marginBottom: 10 }]}
+              value={shareSearch}
+              onChangeText={setShareSearch}
+              placeholder="이름 또는 이메일 검색"
+              autoFocus
+            />
+            <ScrollView style={{ maxHeight: 220, marginBottom: 8 }}>
+              {shareUsers
+                .filter(u =>
+                  !shareSearch.trim() ||
+                  u.name.includes(shareSearch.trim()) ||
+                  u.email.includes(shareSearch.trim())
+                )
+                .map(u => (
+                  <View key={u.id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "700", color: "#1f2a44", fontSize: 15 }}>{u.name}</Text>
+                      <Text style={{ color: "#64748b", fontSize: 13 }}>{u.email}</Text>
+                    </View>
+                    {/* 체크박스 등 추가 가능 */}
+                  </View>
+                ))}
+            </ScrollView>
+            <View style={s.modalBtnRow}>
+              <TouchableOpacity style={s.addTaskModalBtn} onPress={() => setShowShareModal(false)}>
+                <Text style={s.addTaskModalBtnTxt}>확인       </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowShareModal(false)}>
+                <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
                 <TouchableOpacity onPress={() => deleteTask(t.id)} style={s.deleteTaskBtn} activeOpacity={0.7}>
                   <Text style={s.deleteTaskBtnTxt}>삭제</Text>
@@ -297,7 +243,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* 모달 */}
+      {/* ✅ 모달을 화면 최상단에 두어 전체를 어둡게 */}
       <Modal
         visible={showAddTask}
         transparent
@@ -322,7 +268,7 @@ export default function HomeScreen() {
             />
             <View style={s.modalBtnRow}>
               <TouchableOpacity style={s.addTaskModalBtn} onPress={addTask}>
-                <Text style={s.addTaskModalBtnTxt}>추가</Text>
+                <Text style={s.addTaskModalBtnTxt}>추가    </Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.cancelTaskModalBtn} onPress={() => setShowAddTask(false)}>
                 <Text style={s.cancelTaskModalBtnTxt}>취소</Text>
@@ -336,50 +282,244 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  // 스타일 동일 (생략)
-  shareTaskBtn: { marginLeft: 0, marginRight: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#e0e7ef", alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  shareTaskBtnTxt: { color: "#2563eb", fontWeight: "700", fontSize: 13 },
-  modalBoxBetter: { backgroundColor: "#fff", borderRadius: 18, padding: 28, minWidth: 320, maxWidth: 380, flexDirection: "column", alignItems: "stretch", elevation: 8 },
-  modalTitle: { fontWeight: "800", fontSize: 20, marginBottom: 6, color: "#1f2a44", textAlign: "center" },
-  modalInput: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: "#f7f9ff", marginBottom: 0 },
-  modalBtnRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
-  addTaskBtn: { marginLeft: 8, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, backgroundColor: "#2563eb", alignItems: "center", justifyContent: "center" },
-  addTaskBtnTxt: { color: "#fff", fontSize: 22, fontWeight: "bold", lineHeight: 24 },
-  deleteTaskBtn: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  deleteTaskBtnTxt: { color: "#ef4444", fontWeight: "700", fontSize: 13 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center", padding: 16 },
+  shareTaskBtn: {
+    marginLeft: 0,
+    marginRight: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#e0e7ef",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  shareTaskBtnTxt: {
+    color: "#2563eb",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  modalBoxBetter: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 28,
+    minWidth: 320,
+    maxWidth: 380,
+    flexDirection: "column",
+    alignItems: "stretch",
+    elevation: 8,
+  },
+  modalTitle: {
+    fontWeight: "800",
+    fontSize: 20,
+    marginBottom: 6,
+    color: "#1f2a44",
+    textAlign: "center",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#f7f9ff",
+    marginBottom: 0,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 8,
+  },
+  addTaskBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addTaskBtnTxt: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+    lineHeight: 24,
+  },
+  deleteTaskBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  deleteTaskBtnTxt: {
+    color: "#ef4444",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+
+  // ✅ Modal 오버레이: 전체 화면 어둡게 + 포인터 차단
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+
   safe: { flex: 1, backgroundColor: "#eaf2ff" },
-  container: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 14 },
-  faqGoBtn: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: "#e0e7ef", alignItems: "center", justifyContent: "center" },
-  faqGoBtnTxt: { fontSize: 18, color: "#2563eb", fontWeight: "bold" },
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 14,
+  },
+  faqGoBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "#e0e7ef",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  faqGoBtnTxt: {
+    fontSize: 18,
+    color: "#2563eb",
+    fontWeight: "bold",
+  },
+
+  // Header
   headerWrap: { gap: 12 },
-  profileMenuWrap: { position: "absolute", top: 48, right: 0, backgroundColor: "#fff", borderRadius: 12, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4, paddingVertical: 4, minWidth: 120, zIndex: 10 },
-  profileMenuBtn: { paddingVertical: 12, paddingHorizontal: 18, alignItems: "flex-start" },
-  profileMenuBtnTxt: { fontSize: 15, color: "#2563eb", fontWeight: "700" },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  profileMenuWrap: {
+    position: "absolute",
+    top: 48,
+    right: 0,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    paddingVertical: 4,
+    minWidth: 120,
+    zIndex: 10,
+  },
+  profileMenuBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: "flex-start",
+  },
+  profileMenuBtnTxt: {
+    fontSize: 15,
+    color: "#2563eb",
+    fontWeight: "700",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   headerTextBox: { flexDirection: "column" },
   hello: { fontSize: 20, fontWeight: "800", color: "#0b347a" },
   iconRow: { flexDirection: "row", gap: 8 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#ffffffaa", alignItems: "center", justifyContent: "center" },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#ffffffaa",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   iconTxt: { fontSize: 18 },
-  tipCard: { backgroundColor: "#ffffff", borderRadius: 16, padding: 16, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+
+  tipCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
   tipTitle: { color: "#1f2a44", fontSize: 14, marginBottom: 10 },
-  tipBtn: { backgroundColor: "#2563eb", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999 },
+  tipBtn: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+  },
   tipBtnTxt: { color: "#fff", fontWeight: "700" },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, zIndex: 0 },
+
+  // Card base
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    zIndex: 0,
+  },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0b347a" },
-  taskRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
-  taskDivider: { borderBottomWidth: 1, borderBottomColor: "#eef1f6" },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#c8d3ee", backgroundColor: "#f3f6ff", alignItems: "center", justifyContent: "center", marginRight: 10 },
-  checkboxOn: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
+
+  // Tasks
+  taskRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  taskDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#eef1f6",
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#c8d3ee",
+    backgroundColor: "#f3f6ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  checkboxOn: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
+  },
   checkmark: { color: "#fff", fontWeight: "800", fontSize: 14 },
   taskTextBox: { flex: 1 },
   taskText: { color: "#1f2a44", fontSize: 15, fontWeight: "600" },
   taskTextDone: { color: "#9aa9c2", textDecorationLine: "line-through" },
   taskDue: { marginTop: 4, color: "#f97316", fontSize: 12 },
-  secondaryBtn: { marginTop: 12, alignSelf: "flex-start", backgroundColor: "#e6f0ff", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+
+  secondaryBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    backgroundColor: "#e6f0ff",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
   secondaryBtnTxt: { color: "#2563eb", fontWeight: "700" },
-  faqRow: { backgroundColor: "#f7f9ff", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", marginTop: 8, zIndex: 0 },
+
+  // FAQ
+  faqRow: {
+    backgroundColor: "#f7f9ff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    zIndex: 0,
+  },
   faqQ: { color: "#2563eb", fontWeight: "800", marginRight: 8 },
   faqText: { color: "#1f2a44", fontSize: 14, flex: 1 },
 });
