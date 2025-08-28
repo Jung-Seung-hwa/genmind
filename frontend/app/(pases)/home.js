@@ -66,13 +66,37 @@ export default function HomeScreen() {
     fetchMe();
   }, []);
 
-  const [tasks, setTasks] = useState([
-    { id: 1, text: "모든 회사 직원 사용 가능", done: false },
-    { id: 2, text: "차별화", done: false },
-    { id: 3, text: "그러면 투두 리스트 피그마처럼 공유", done: false, due: "from : 정승화" },
-    { id: 4, text: "일을 공유한사람들 체크하면 같이 체크공유?", done: false },
-    { id: 5, text: "주간 보고서 작성하기", done: false },
-  ]);
+  const [tasks, setTasks] = useState([]);
+
+  // 체크리스트 불러오기
+  const fetchChecklist = async () => {
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) return;
+      const res = await fetch(`${BASE}/checklist`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("체크리스트 불러오기 실패");
+      const data = await res.json();
+      const mapped = data.map((c) => ({
+        id: c.item_id,
+        text: c.item,
+        done: !!c.is_done,
+        due: c.deadline
+          ? `마감: ${c.deadline}`
+          : c.from_user
+          ? `from: ${c.from_user}`
+          : null,
+      }));
+      setTasks(mapped);
+    } catch (e) {
+      // 실패 시 무시
+    }
+  };
+
+  useEffect(() => {
+    fetchChecklist();
+  }, []);
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
@@ -92,11 +116,36 @@ export default function HomeScreen() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   }, []);
 
-  const addTask = useCallback(() => {
+  // 체크리스트 추가 (POST)
+  const addTask = useCallback(async () => {
     if (!newTaskText.trim()) return;
-    setTasks((prev) => [...prev, { id: Date.now(), text: newTaskText.trim(), done: false }]);
-    setNewTaskText("");
-    setShowAddTask(false);
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) return;
+      const res = await fetch(`${BASE}/checklist`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ item: newTaskText.trim() }),
+      });
+      if (!res.ok) throw new Error("추가 실패");
+      const newItem = await res.json();
+      setTasks((prev) => [
+        {
+          id: newItem.item_id,
+          text: newItem.item,
+          done: newItem.is_done,
+          due: newItem.deadline ? `마감: ${newItem.deadline}` : null,
+        },
+        ...prev,
+      ]);
+      setNewTaskText("");
+      setShowAddTask(false);
+    } catch (e) {
+      // 실패 시 무시
+    }
   }, [newTaskText]);
 
   // 포커스 자동
@@ -106,8 +155,20 @@ export default function HomeScreen() {
     }
   }, [showAddTask]);
 
-  const deleteTask = useCallback((id) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  // 체크리스트 삭제 (DELETE)
+  const deleteTask = useCallback(async (id) => {
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) return;
+      const res = await fetch(`${BASE}/checklist/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("삭제 실패");
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } catch (e) {
+      // 실패 시 무시
+    }
   }, []);
 
   const router = useRouter();
