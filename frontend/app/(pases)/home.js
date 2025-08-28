@@ -16,20 +16,6 @@ import {
   Modal,
 } from "react-native";
 
-/* ▼▼▼ [중복 제거] 아래의 중복 import/상수 정의 블록은 삭제했습니다 ▼▼▼
-   // 자주 묻는 질문 TOP
-   import React, { useEffect, useState, useCallback } from "react";
-   import { Platform } from "react-native";
-   import Constants from "expo-constants";
-
-   const EXTRA = (Constants.expoConfig?.extra) ?? {};
-   const FASTAPI_BASE =
-     EXTRA.FASTAPI_BASE ??
-     EXTRA.API_BASE ??
-     (Platform.OS === "android" ? "http://10.0.2.2:8081" : "http://127.0.0.1:8081");
-   ▲▲▲ 중복이어서 제거(요구사항 준수: 중복 외 수정 없음) ▲▲▲
-*/
-
 // ✅ LAN IP 자동 감지 (login.js와 동일 로직)
 const deriveLanBase = () => {
   const sources = [
@@ -127,18 +113,19 @@ export default function HomeScreen() {
     []
   );
 
-  // ✅ [추가] DB에서 views 내림차순 FAQ 전체 불러오기 상태
+  // ✅ DB에서 views 내림차순 FAQ 불러오기 상태
   const [faqItems, setFaqItems] = useState([]);
   const [faqLoading, setFaqLoading] = useState(true);
 
   const loadFaq = useCallback(async () => {
     try {
       setFaqLoading(true);
-      // 인증 불필요 엔드포인트(백엔드 /faq/all) 기준
-      const r = await fetch(`${BASE}/faq/all`);
+      // [CHANGE 1] 상위 5개만 백엔드에서 가져오도록 변경
+      const r = await fetch(`${BASE}/faq/top?limit=5`);
       const data = await r.json();
       // [{qa_id, question, answer, ref_article, views, rank}, ...]
-      setFaqItems(Array.isArray(data) ? data : []);
+      // [CHANGE 2] 혹시 /faq/top이 없을 경우 대비해 최대 5개만 표시
+      setFaqItems(Array.isArray(data) ? data.slice(0, 5) : []);
     } catch (e) {
       console.warn("FAQ load error:", e);
       setFaqItems([]); // 실패 시 폴백(하드코딩 리스트)로 내려감
@@ -147,7 +134,7 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // ✅ [추가] 최초 로드 + 챗봇에서 refresh 이벤트 받으면 재조회
+  // ✅ 최초 로드 + 챗봇에서 refresh 이벤트 받으면 재조회
   useEffect(() => {
     loadFaq();
 
@@ -301,62 +288,6 @@ export default function HomeScreen() {
               >
                 <Text style={s.iconTxt}>👤</Text>
               </TouchableOpacity>
-              {/* 프로필 드롭다운 Modal */}
-              <Modal
-                visible={showProfileMenu}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowProfileMenu(false)}
-              >
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  activeOpacity={1}
-                  onPress={() => setShowProfileMenu(false)}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 110,
-                      right: 18,
-                      minWidth: 160,
-                      backgroundColor: '#fff',
-                      borderRadius: 12,
-                      shadowColor: '#000',
-                      shadowOpacity: 0.12,
-                      shadowRadius: 12,
-                      shadowOffset: { width: 0, height: 6 },
-                      elevation: 8,
-                      borderWidth: 1,
-                      borderColor: '#e5e7eb',
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <TouchableOpacity style={[s.profileMenuBtn, {paddingVertical:12, paddingHorizontal:18}]} onPress={() => {
-                      setShowProfileMenu(false);
-                      router.replace('/profile_edit');
-                    }}>
-                      <Text style={[s.profileMenuBtnTxt, {fontSize:15}]}>개인정보수정</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.profileMenuBtn, {paddingVertical:12, paddingHorizontal:18}]}
-                      onPress={() => {
-                        // 모든 쿠키 삭제 (웹 환경)
-                        if (typeof document !== 'undefined') {
-                          document.cookie.split(';').forEach(function(c) {
-                            document.cookie = c
-                              .replace(/^ +/, '')
-                              .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
-                          });
-                        }
-                        setShowProfileMenu(false);
-                        router.replace('/domain');
-                      }}
-                    >
-                      <Text style={[s.profileMenuBtnTxt, { color: "#ef4444", fontSize:15 }]}>로그아웃</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              </Modal>
             </View>
           </View>
 
@@ -540,7 +471,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={{ marginTop: 8 }}>
-            {/* ✅ [교체] DB 결과 우선, 실패/빈 배열이면 기존 더미 표시 */}
+            {/* DB 결과 우선, 실패/빈 배열이면 기존 더미 표시 */}
             {faqLoading ? (
               <View style={[s.faqRow, { justifyContent: "center" }]}>
                 <Text style={s.faqText}>불러오는 중…</Text>
@@ -548,17 +479,14 @@ export default function HomeScreen() {
             ) : faqItems.length > 0 ? (
               faqItems.map((f) => (
                 <View key={f.qa_id} style={s.faqRow}>
-                  <Text style={s.faqQ}>{f.rank}위</Text>
+                  <Text style={s.faqQ}>Q.</Text>
                   <Text style={s.faqText} numberOfLines={1}>
-                    Q. {f.question}
-                  </Text>
-                  <Text style={[s.faqText, { textAlign: "right" }]}>
-                    조회수 {f.views}
+                    {f.question}
                   </Text>
                 </View>
               ))
             ) : (
-              faqs.map((q, i) => (
+              faqs.slice(0, 5).map((q, i) => (  /* 폴백도 최대 5개 */
                 <View key={i} style={s.faqRow}>
                   <Text style={s.faqQ}>Q.</Text>
                   <Text style={s.faqText} numberOfLines={1}>
@@ -799,11 +727,11 @@ const s = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    flexDirection: "row",
+    flexDirection: "row",       // 가로 배치
     alignItems: "center",
     marginTop: 8,
     zIndex: 0,
-    justifyContent: "space-between",
+    // justifyContent: "space-between", ❌ 제거
   },
   faqQ: { color: "#2563eb", fontWeight: "800", marginRight: 8 },
   faqText: { color: "#1f2a44", fontSize: 14, flexShrink: 1 },
