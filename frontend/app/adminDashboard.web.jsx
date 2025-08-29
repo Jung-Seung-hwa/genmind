@@ -227,20 +227,31 @@ export default function AdminDashboardWeb() {
           )}
         </View>
         <View style={styles.topRight}>
-          <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>🔔</Text></Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push("/chat")}>
-            <Text style={styles.iconTxt}>💬 Chat</Text>
-          </Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}>
+
+
+          {/* ✅ Chat 버튼 (검은 배경 + 이미지 + 텍스트) */}
+          <Pressable style={styles.btnDark} onPress={() => router.push("/chat")}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Image
                 source={require("./images/Chat.png")}
-                style={{ width: 30, height: 28, resizeMode: "contain", marginRight: 4 }}
+                style={{ width: 24, height: 22, resizeMode: "contain", marginRight: 6 }}
               />
-              <Text style={styles.iconTxt}>Home</Text>
+              <Text style={styles.btnDarkText}>챗봇</Text>
             </View>
           </Pressable>
-          <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>👤</Text></Pressable>
+
+
+          {/* ✅ Home 버튼 (로그아웃 스타일) */}
+          <Pressable style={styles.btnDark} onPress={() => router.push("/home")}>
+            <Text style={styles.btnDarkText}>🏠 홈 화면</Text>
+          </Pressable>
+
+          <Pressable style={styles.btnDark} onPress={() => router.push("/profile")}>
+            <Text style={styles.btnDarkText}>개인정보수정</Text>
+          </Pressable>
+
+
+          {/* 로그아웃 버튼 */}
           <Pressable style={styles.btnDark} onPress={onLogout}>
             <Text style={styles.btnDarkText}>로그아웃</Text>
           </Pressable>
