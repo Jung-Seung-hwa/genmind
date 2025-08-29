@@ -235,9 +235,7 @@ export default function LoginScreen() {
               <Text style={styles.link}>다른 도메인으로 로그인</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() =>
-                Alert.alert("비밀번호 재설정", "MVP: 추후 연결 예정")
-              }
+              onPress={() => router.replace("/forgot")}
             >
               <Text style={styles.link}>비밀번호를 잊으셨나요?</Text>
             </TouchableOpacity>
