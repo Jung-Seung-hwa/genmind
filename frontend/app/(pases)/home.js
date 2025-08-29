@@ -40,8 +40,8 @@ const deriveLanBase = () => {
 const BASE = deriveLanBase();
 
 export default function HomeScreen() {
-  // 사용자명 상태
-  const [userName, setUserName] = useState("");
+  // 사용자 정보 상태 (user_name, user_type 등)
+  const [user, setUser] = useState(null);
   useEffect(() => {
     const fetchMe = async () => {
       try {
@@ -57,9 +57,9 @@ export default function HomeScreen() {
         });
         if (!res.ok) throw new Error("인증 실패");
         const me = await res.json();
-        setUserName(me?.name || "");
+        setUser(me);
       } catch (e) {
-        setUserName("");
+        setUser(null);
       }
     };
     fetchMe();
@@ -248,39 +248,29 @@ export default function HomeScreen() {
           <View style={s.headerRow}>
             <View style={s.headerTextBox}>
               <Text style={s.hello}>
-                {userName ? `안녕하세요, ${userName}님!` : "안녕하세요!"}
+                {user?.name ? `안녕하세요, ${user.name}님!` : "안녕하세요!"}
               </Text>
             </View>
             <View style={s.iconRow}>
-              {/* 관리자 계정이면 관리자 대시보드 이동 버튼 */}
-              {(userName === "admin" ||
-                userName === "관리자" ||
-                userName === "Admin" ||
-                userName === "ADMIN") && (
-                  <TouchableOpacity
-                    style={[
-                      s.iconBtn,
-                      {
-                        marginRight: 6,
-                        backgroundColor: "#eef2ff",
-                        borderWidth: 1,
-                        borderColor: "#c7d2fe",
-                      },
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => router.replace("/adminDashboard")}
-                  >
-                    <Text
-                      style={{
-                        color: "#2563eb",
-                        fontWeight: "700",
-                        fontSize: 13,
-                      }}
-                    >
-                      관리자대시보드
-                    </Text>
-                  </TouchableOpacity>
-                )}
+              {/* user_type이 admin인 경우만 대시보드 버튼 노출 */}
+              {user?.user_type === "admin" && (
+                <TouchableOpacity
+                  style={[
+                    s.iconBtn,
+                    {
+                      marginRight: 6,
+                      backgroundColor: "#eef2ff",
+                      borderWidth: 1,
+                      borderColor: "#c7d2fe",
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => router.replace("/adminDashboard")}
+                  accessibilityLabel="관리자 대시보드"
+                >
+                  <Text style={{ fontSize: 18 }}>🛠️</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={s.iconBtn}
                 activeOpacity={0.7}
