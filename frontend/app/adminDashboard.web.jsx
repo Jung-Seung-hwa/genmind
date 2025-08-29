@@ -228,17 +228,20 @@ export default function AdminDashboardWeb() {
         </View>
         <View style={styles.topRight}>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>🔔</Text></Pressable>
+          {/* ✅ Chat 버튼 (Home처럼 이미지+텍스트) */}
           <Pressable style={styles.iconBtn} onPress={() => router.push("/chat")}>
-            <Text style={styles.iconTxt}>💬 Chat</Text>
-          </Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Image
                 source={require("./images/Chat.png")}
                 style={{ width: 30, height: 28, resizeMode: "contain", marginRight: 4 }}
               />
-              <Text style={styles.iconTxt}>Home</Text>
+              <Text style={styles.iconTxt}>Chat</Text>
             </View>
+          </Pressable>
+
+          {/* ✅ Home 버튼 (Chat처럼 텍스트만) */}
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}>
+            <Text style={styles.iconTxt}>🏠Home</Text>
           </Pressable>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>👤</Text></Pressable>
           <Pressable style={styles.btnDark} onPress={onLogout}>
