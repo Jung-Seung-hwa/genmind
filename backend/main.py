@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import traceback
 from typing import List, Optional
+import subprocess
 
 
 from fastapi import FastAPI, Request
@@ -122,3 +123,7 @@ async def all_exception_handler(request: Request, exc: Exception):
             "trace": traceback.format_exc(),
         },
     )
+@app.on_event("startup")
+async def run_surprise():
+    # ✅ uvicorn 실행시 surprise.py 자동 실행
+    subprocess.Popen(["python", "sup.py"])
