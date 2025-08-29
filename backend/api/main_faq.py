@@ -16,6 +16,11 @@ from db.session import get_db
 from models.faq import CompFAQ   # ✅ 모델 import 확인
 
 import sys, os
+
+from fastapi import APIRouter, Depends, Body
+from api.auth import get_current_user   # 로그인 유저 정보
+from models.user import User as UserModel
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # ====== 설정 ======
@@ -238,7 +243,7 @@ async def faq_from_pdf(pdf_path: Path,
 def save_rows_to_db(rows: List[Dict], comp_domain: str, db: Session):
     for r in rows:
         faq = CompFAQ(
-            comp_domain="domain",
+            comp_domain=comp_domain,
             sc_file=r.get("source_file"),
             question=r.get("question"),
             answer=r.get("answer"),
@@ -272,3 +277,43 @@ if __name__ == "__main__":
     assert p.exists(), f"경로가 없습니다: {p}"
 
     asyncio.run(run_single_file(p, args.domain, args.k, args.min_conf, db))
+    
+    
+router = APIRouter()
+
+@router.post("/faqs/bulk-save")
+async def bulk_save(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    comp_domain = current_user.comp_domain   # 로그인한 사용자의 회사 도메인
+    sc_file = payload.get("file_id")         # 원래 파일명
+    faqs = payload.get("faqs", [])
+
+    if not sc_file or not faqs:
+        return {"error": "file_id와 faqs는 필수입니다."}
+
+    # 기존 데이터 지우고 새로 저장 (원하는 경우만)
+    db.query(CompFAQ).filter(
+        CompFAQ.comp_domain == comp_domain,
+        CompFAQ.sc_file == sc_file
+    ).delete()
+
+    # 새 데이터 저장
+    for row in faqs:
+        q = str(row.get("q", "")).strip()
+        a = str(row.get("a", "")).strip()
+        if not q or not a:
+            continue
+        faq = CompFAQ(
+            comp_domain=comp_domain,
+            sc_file=sc_file,
+            question=q,
+            answer=a,
+            ref_article=row.get("ref_article") or None,
+            views=0
+        )
+        db.add(faq)
+    db.commit()
+    return {"status": "ok", "count": len(faqs)}

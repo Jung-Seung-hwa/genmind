@@ -2,15 +2,14 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-/** API BASE 설정 (환경변수 우선) */
 const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ||
   (typeof window !== "undefined"
     ? `${window.location.protocol}//${window.location.hostname}:8000`
     : "http://localhost:8000");
 
-/** 토스트처럼 간단한 배지 */
 function Pill({ children, color = "#334155", bg = "#e2e8f0" }) {
   return (
     <View style={{ backgroundColor: bg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 }}>
@@ -22,26 +21,20 @@ function Pill({ children, color = "#334155", bg = "#e2e8f0" }) {
 export default function FaqUploadPage() {
   const router = useRouter();
 
-  // 업로드 영역
   const inputRef = useRef(null);
   const dropRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState(null);
 
-  // 진행 상태
-  // step: 'idle' | 'uploading' | 'extracting' | 'review' | 'saving' | 'done'
   const [step, setStep] = useState("idle");
 
-  // 서버 응답 데이터
   const [fileId, setFileId] = useState(null);
   const [summary, setSummary] = useState("");
-  const [faqs, setFaqs] = useState([]); // [{id?, q, a}]
+  const [faqs, setFaqs] = useState([]);
 
-  // 메시지
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
 
-  /** Drag & Drop (web 전용) */
   useEffect(() => {
     if (!dropRef.current) return;
     const node = dropRef.current;
@@ -77,29 +70,38 @@ export default function FaqUploadPage() {
       // 1) 업로드
       const fd = new FormData();
       fd.append("file", f);
-      const upRes = await fetch(`${API_BASE}/files/upload`, {
+      const upRes = await fetch(`${API_BASE}/admin/files/upload`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${await AsyncStorage.getItem("access_token")}`,
+        },
         body: fd,
       });
       if (!upRes.ok) throw new Error(`업로드 실패 HTTP ${upRes.status}`);
-      const upJson = await upRes.json(); // { file_id, ... }
-      const fid = upJson.file_id || upJson.id;
+      const upJson = await upRes.json(); // { file_id, path }
+      const fid = upJson.file_id; // ✅ 원래 파일명 그대로
       setFileId(fid);
 
       // 2) 추출
       setStep("extracting");
-      const exRes = await fetch(`${API_BASE}/ai/extract-faq`, {
+      const exRes = await fetch(`${API_BASE}/admin/files/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_id: fid }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await AsyncStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({ file_id: fid }), // ✅ 원래 파일명 전달
       });
       if (!exRes.ok) throw new Error(`추출 실패 HTTP ${exRes.status}`);
       const exJson = await exRes.json(); // { summary, faqs:[{q,a}] }
+
+      const extractedFaqs = exJson.faqs || [];
+      console.log(`총 ${extractedFaqs.length}개의 QA가 추출되었습니다.`);
+
       setSummary(exJson.summary || "");
-      setFaqs(Array.isArray(exJson.faqs) ? exJson.faqs : []);
+      setFaqs(Array.isArray(extractedFaqs) ? extractedFaqs : []);
       setStep("review");
     } catch (e) {
-      // 서버가 아직 없으면 목업으로 진행
       console.warn("[mock] falling back:", e?.message);
       const ext = (f.name.split(".").pop() || "").toLowerCase();
       const mockFaqs = [
@@ -130,9 +132,12 @@ export default function FaqUploadPage() {
     try {
       const res = await fetch(`${API_BASE}/faqs/bulk-save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await AsyncStorage.getItem("access_token")}`,
+        },
         body: JSON.stringify({
-          file_id: fileId,
+          file_id: fileId, // ✅ 원래 파일명 그대로 전달
           summary,
           faqs: faqs.map((x) => ({ id: x.id, q: String(x.q || "").trim(), a: String(x.a || "").trim() })),
         }),
@@ -142,7 +147,7 @@ export default function FaqUploadPage() {
       setOkMsg("DB에 저장되었습니다!");
     } catch (e) {
       setError(e.message || "저장 중 오류가 발생했습니다.");
-      setStep("review"); // 실패 시 다시 편집 단계로
+      setStep("review");
     }
   }
 

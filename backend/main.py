@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from api import faq_extract
 
 # .env 로드 (backend/.env) - 반드시 최상단에서 실행
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -21,7 +22,7 @@ from api import files
 from db.session import Base, engine, SessionLocal  # SessionLocal이 있다면 가져와서 헬스체크에 사용
 from models import company, user  # noqa: F401 (테이블 선언 보장)
 from api import chat  # 기존 라우터 (prefix 가 /api/chat 인지 확인)
-from api import auth, checklist, user
+from api import auth, checklist, user, main_faq
 
 # 라우터 관련 임포트
 from api import faq_top as faq_routes
@@ -70,6 +71,9 @@ app.include_router(files.router)
 app.include_router(user.router, prefix="")  
 # 라우터 include
 app.include_router(faq_routes.router)
+app.include_router(faq_extract.router)
+app.include_router(main_faq.router)
+
 # ------------------------------------------------------------------------------
 # 기본/헬스체크/버전 엔드포인트
 # ------------------------------------------------------------------------------

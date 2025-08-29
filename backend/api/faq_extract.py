@@ -22,14 +22,16 @@ async def upload_file(
     file: UploadFile = File(...),
     current_user: UserModel = Depends(get_current_user)  # ✅ JWT 인증
 ):
-    # 관리자가 아니라면 차단
     if current_user.user_type != "admin":
         raise HTTPException(status_code=403, detail="관리자만 업로드 가능합니다.")
 
-    fid = f"{uuid.uuid4()}.pdf"
+    # ✅ 원래 파일명 사용
+    fid = file.filename
     path = UPLOAD_DIR / fid
+
     with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+
     return {"file_id": fid, "path": str(path)}
 
 # ----------------------
@@ -49,7 +51,7 @@ async def analyze_file(
     rows = await faq_from_pdf(pdf_path)
     return {
         "summary": "FAQ 자동 추출 결과",
-        "qa": [{"q": r["question"], "a": r["answer"]} for r in rows],
+        "faqs": [{"q": r["question"], "a": r["answer"]} for r in rows],
     }
 
 # ----------------------
