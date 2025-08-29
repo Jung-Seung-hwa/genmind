@@ -5,6 +5,10 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// 관리자 대시보드 Genmind 이미지 변경 import
+import { Image } from "react-native";
 
 /** FullCalendar CSS (Expo Web에서는 import 대신 <link> 주입) */
 function useFullCalendarCss(version = "6.1.15") {
@@ -46,6 +50,8 @@ export default function AdminDashboardWeb() {
 
   useFullCalendarCss();
 
+  const [me, setMe] = useState(null);
+  const [loadingMe, setLoadingMe] = useState(true);
   // 캘린더
   const [events, setEvents] = useState([
     { title: "승인 마감", date: "2025-01-08" },
@@ -73,6 +79,31 @@ export default function AdminDashboardWeb() {
 
   // Drag&Drop (web)
   useEffect(() => {
+    // ✅ JWT 인증 → 사용자 정보 가져오기
+    const fetchMe = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Auth failed");
+        const data = await res.json();
+        setMe(data);
+        // 관리자만 접근 가능
+        if (data.user_type !== "admin") router.replace("/home");
+      } catch (e) {
+        console.error("auth error", e);
+        router.replace("/login");
+      } finally {
+        setLoadingMe(false);
+      }
+    };
+    fetchMe();
+
     if (!dropRef.current) return;
     const node = dropRef.current;
     const over = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
@@ -131,8 +162,8 @@ export default function AdminDashboardWeb() {
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       const docType =
         ext === "pdf" ? "PDF 문서" :
-        ["xls", "xlsx"].includes(ext) ? "스프레드시트" :
-        "일반 문서";
+          ["xls", "xlsx"].includes(ext) ? "스프레드시트" :
+            "일반 문서";
       const mock = {
         filename: file.name,
         size: file.size,
@@ -175,27 +206,39 @@ export default function AdminDashboardWeb() {
     }
   }
 
-  const onLogout = () => router.replace("/login");
+  const onLogout = async () => {
+    await AsyncStorage.removeItem("access_token");
+    await AsyncStorage.removeItem("user");
+    router.replace("/login");
+  };
 
   return (
     <View style={styles.page}>
       {/* 상단 바 */}
       <View style={styles.topbar}>
         <View style={styles.topLeft}>
-          <Text style={styles.brand}>admin님</Text>
-          {!!tenant && (
+          <Text style={styles.brand}>
+            {loadingMe ? "..." : me ? `${me.name}님` : "로그인 필요"}
+          </Text>
+          {me?.comp_domain && (
             <View style={styles.chipSoft}>
-              <Text style={styles.chipSoftText}>{tenant}</Text>
+              <Text style={styles.chipSoftText}>{me.comp_domain}</Text>
             </View>
           )}
         </View>
         <View style={styles.topRight}>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>🔔</Text></Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push("/chat")}> 
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/chat")}>
             <Text style={styles.iconTxt}>💬 Chat</Text>
           </Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}> 
-            <Text style={styles.iconTxt}>🏠 Home</Text>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/home")}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Image
+                source={require("./images/Chat.png")}
+                style={{ width: 30, height: 28, resizeMode: "contain", marginRight: 4 }}
+              />
+              <Text style={styles.iconTxt}>Home</Text>
+            </View>
           </Pressable>
           <Pressable style={styles.iconBtn}><Text style={styles.iconTxt}>👤</Text></Pressable>
           <Pressable style={styles.btnDark} onPress={onLogout}>
