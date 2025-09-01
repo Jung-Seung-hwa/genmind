@@ -40,6 +40,7 @@ const deriveLanBase = () => {
 const BASE = deriveLanBase();
 
 export default function HomeScreen() {
+    const isMobile = Platform.OS === 'android' || Platform.OS === 'ios';
   const router = useRouter();
   // 사용자 정보 상태 (user_name, user_type 등)
   const [user, setUser] = useState(null);
@@ -265,6 +266,9 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+        {isMobile && (
+        <View style={{ width: '100%', height: 36, backgroundColor: 'transparent' }} />
+      )}
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={s.container}>
         {/* 헤더 */}
