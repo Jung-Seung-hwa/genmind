@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Image
 } from "react-native";
 
 // ✅ LAN IP 자동 감지 (login.js와 동일 로직)
@@ -360,6 +361,10 @@ export default function HomeScreen() {
           </View>
 
           <View style={s.tipCard}>
+             <Image
+                source={require("../../assets/images/Chat.png")}
+                style={{ width: 60, height: 60, resizeMode: "contain", marginBottom: 10 }}
+              />
             <Text style={s.tipTitle}>궁금한 것이 있으면 언제든 물어보세요</Text>
             <TouchableOpacity
               style={s.tipBtn}
