@@ -265,14 +265,7 @@ export default function FaqUploadPage() {
         {/* 검토/수정 섹션 */}
         {step === "review" || step === "saving" || step === "done" ? (
           <View style={[st.card, { gap: 12 }]}>
-            <Text style={st.cardTitle}>요약</Text>
-            <TextInput
-              style={st.textarea}
-              multiline
-              value={summary}
-              onChangeText={setSummary}
-              placeholder="문서 요약을 확인/수정하세요."
-            />
+
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Text style={st.cardTitle}>FAQ (질문/답변)</Text>
