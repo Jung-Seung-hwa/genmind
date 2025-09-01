@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 
 from db.session import get_db
 from models.checklist import Checklist
@@ -44,11 +45,31 @@ def list_checklists(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    checklists = db.query(Checklist).filter(
-        (Checklist.to_user == current_user.user_email) |
-        (Checklist.from_user == current_user.user_email)
-    ).order_by(Checklist.created_at.desc()).all()
-    return checklists
+    checklists = (
+        db.query(Checklist)
+        .options(
+            joinedload(Checklist.to_user_rel),   # FK 관계 미리 로드
+            joinedload(Checklist.from_user_rel)
+        )
+        .filter(
+            (Checklist.to_user == current_user.user_email) |
+            (Checklist.from_user == current_user.user_email)
+        )
+        .order_by(Checklist.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "item_id": c.item_id,
+            "to_user": c.to_user_rel.name if c.to_user_rel else None,
+            "from_user": c.from_user_rel.name if c.from_user_rel else None,
+            "item": c.item,
+            "deadline": c.deadline,
+            "is_done": c.is_done,
+            "created_at": c.created_at,
+        }
+        for c in checklists
+    ]
 
 
 # ✅ 체크리스트 생성

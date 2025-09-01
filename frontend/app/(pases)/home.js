@@ -83,19 +83,31 @@ export default function HomeScreen() {
       });
       if (!res.ok) throw new Error("체크리스트 불러오기 실패");
       const data = await res.json();
-      const mapped = data.map((c) => ({
-        id: c.item_id,
-        text: c.item,
-        done: !!c.is_done,
-        due: c.deadline
-          ? `마감: ${c.deadline}`
-          : c.from_user
-            ? `from: ${c.from_user}`
-            : null,
-      }));
+
+      const myEmail = user?.email;   // ✅ 로그인한 사용자 이메일
+
+      const mapped = data.map((c) => {
+        let dueLabel = null;
+
+        if (myEmail === c.from_user_email && c.to_user) {
+          // 내가 보낸 거 → 받는 사람 표시
+          dueLabel = `to: ${c.to_user}`;
+        } else if (myEmail === c.to_user_email && c.from_user) {
+          // 내가 받은 거 → 보낸 사람 표시
+          dueLabel = `from: ${c.from_user}`;
+        }
+
+        return {
+          id: c.item_id,
+          text: c.item,
+          done: !!c.is_done,
+          due: dueLabel,
+        };
+      });
+
       setTasks(mapped);
     } catch (e) {
-      // 실패 시 무시
+      console.warn("❌ fetchChecklist error", e);
     }
   };
 
