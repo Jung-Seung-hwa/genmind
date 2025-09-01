@@ -98,6 +98,7 @@ export default function FaqUploadPage() {
       const upJson = await upRes.json(); // { file_id, path }
       const fid = upJson.file_id; // ✅ 원래 파일명 그대로
       setFileId(fid);
+      setFile(f); 
 
       // 2) 추출
       setStep("extracting");
@@ -139,9 +140,10 @@ export default function FaqUploadPage() {
   }
 
   // ★ /faq/commit 호출 유틸 (백엔드와 계약된 스키마)
-  async function commitFAQs({ baseUrl, comp_domain, qaList }) {
+  async function commitFAQs({ baseUrl, comp_domain, qaList, scFile  }) {
     const payload = {
       comp_domain,
+      source_file: scFile,
       items: qaList.map((x) => ({
         qa_id: x.id ?? null,              // 수정건이면 id(qa_id) 전달, 신규면 null
         question: String(x.q || "").trim(),
@@ -182,6 +184,7 @@ export default function FaqUploadPage() {
         baseUrl: API_BASE,
         comp_domain: compDomain,
         qaList: faqs, // 현재 편집한 리스트
+        scFile: file?.name || "manual", 
       });
 
       setStep("done");
