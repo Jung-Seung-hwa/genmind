@@ -51,7 +51,7 @@ export default function DomainScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="gmchat.com"
+            placeholder="genmind.com"
             value={domain}
             onChangeText={setDomain}
             autoCapitalize="none"
