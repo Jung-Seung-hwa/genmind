@@ -39,6 +39,7 @@ const deriveLanBase = () => {
 const BASE = deriveLanBase();
 
 export default function HomeScreen() {
+  const router = useRouter();
   // 사용자 정보 상태 (user_name, user_type 등)
   const [user, setUser] = useState(null);
   useEffect(() => {
