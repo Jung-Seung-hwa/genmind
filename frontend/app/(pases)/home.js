@@ -139,14 +139,12 @@ export default function HomeScreen() {
     loadFaq();
 
     const handler = () => loadFaq();
-    if (typeof window !== "undefined") {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
       window.addEventListener("faq:refresh", handler);
-    }
-    return () => {
-      if (typeof window !== "undefined") {
+      return () => {
         window.removeEventListener("faq:refresh", handler);
-      }
-    };
+      };
+    }
   }, [loadFaq]);
 
   const toggleTask = useCallback((id) => {
