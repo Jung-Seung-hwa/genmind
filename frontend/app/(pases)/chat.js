@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useCallback, useEffect } from "react"
 import { Keyboard, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput,
          KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Modal } from "react-native";
+import robotImg from "../images/robot_sample.jpg";
 import { Image } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
@@ -68,6 +70,30 @@ export default function ChatScreen() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingDots, setLoadingDots] = useState(1); // 1~3 반복
+  const [showImageModal, setShowImageModal] = useState(false);
+
+  // /chat 진입 시 자동으로 모달 한 번 띄우기
+  useEffect(() => {
+    setShowImageModal(true);
+  }, []);
+
+  // 답변 대기 중 ... .. ... 애니메이션
+  useEffect(() => {
+    if (!isLoading) return;
+    let active = true;
+    let dots = 1;
+    const interval = setInterval(() => {
+      if (!active) return;
+      dots = dots % 3 + 1;
+      setLoadingDots(dots);
+    }, 400);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      setLoadingDots(1);
+    };
+  }, [isLoading]);
 
 
   const listRef = useRef(null);
@@ -81,6 +107,17 @@ export default function ChatScreen() {
 
   const sendQuestion = useCallback(async (question) => {
     setIsLoading(true);
+    // 답변 대기 중 ... 메시지 추가
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "loading",
+        text: ".",
+        isUser: false,
+        timestamp: new Date(),
+        loading: true,
+      },
+    ]);
     try {
       // FastAPI 백엔드로 요청 (포트 8000, /api/chat/ask)
       const res = await fetch(`${FASTAPI_BASE}/api/chat/ask`, {
@@ -92,13 +129,12 @@ export default function ChatScreen() {
 
       const data = await res.json();
       setMessages((prev) => [
-        ...prev,
+        ...prev.filter((m) => m.id !== "loading"),
         {
           id: String(Date.now()),
           text: data.answer || "죄송합니다. 응답을 생성할 수 없습니다.",
           isUser: false,
           timestamp: new Date(),
-          // 백엔드가 주는 출처 배열을 보존 (기존 shape 호환 위해 둘 다 넣어둠)
           sources: data.sources,
           source: data.sources,
         },
@@ -106,7 +142,7 @@ export default function ChatScreen() {
     } catch (err) {
       console.error("Error sending question:", err);
       setMessages((prev) => [
-        ...prev,
+        ...prev.filter((m) => m.id !== "loading"),
         {
           id: String(Date.now()),
           text: "죄송합니다. 현재 서비스에 문제가 있습니다. 잠시 후 다시 시도해주세요.",
@@ -139,6 +175,16 @@ export default function ChatScreen() {
   const renderItem = useCallback(({ item }) => {
     const bubbleStyle = item.isUser ? styles.userBubble : styles.botBubble;
     const textStyle = item.isUser ? styles.userText : styles.botText;
+    // 로딩 메시지라면 ... .. ...
+    if (item.loading) {
+      return (
+        <View style={[styles.msgRow, styles.rowLeft]}>
+          <View style={[styles.bubble, styles.botBubble]}>
+            <Text style={[styles.msgText, styles.botText, { fontSize: 20, lineHeight: 20 }]}>{".".repeat(loadingDots)}</Text>
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={[styles.msgRow, item.isUser ? styles.rowRight : styles.rowLeft]}>
         <View style={[styles.bubble, bubbleStyle]}>
@@ -146,7 +192,7 @@ export default function ChatScreen() {
         </View>
       </View>
     );
-  }, []);
+  }, [loadingDots]);
 
   const header = useMemo(
     () => (
@@ -187,6 +233,38 @@ export default function ChatScreen() {
             contentContainerStyle={styles.listContent}
           />
         </View>
+
+        {/* 이미지 팝업 버튼 예시 */}
+        <TouchableOpacity onPress={() => setShowImageModal(true)} style={{ alignSelf: "center", margin: 16 }}>
+          <Text style={{ color: "#2563eb" }}>로봇 이미지 보기</Text>
+        </TouchableOpacity>
+
+        {/* 이미지 모달 */}
+        <Modal visible={showImageModal} transparent animationType="fade" onRequestClose={() => setShowImageModal(false)}>
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
+            <View style={{
+              backgroundColor: "#fff",
+              borderRadius: 16,
+              padding: 16,
+              alignItems: "center",
+              maxWidth: "90%",
+              maxHeight: "80%"
+            }}>
+              <Image
+                source={robotImg}
+                style={{ width: 300, height: 300, resizeMode: "contain" }}
+              />
+              <TouchableOpacity onPress={() => setShowImageModal(false)} style={{ marginTop: 16 }}>
+                <Text style={{ color: "#2563eb", fontWeight: "700" }}>닫기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Input bar */}
         <View style={styles.inputBar}>
