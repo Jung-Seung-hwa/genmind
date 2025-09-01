@@ -147,10 +147,32 @@ export default function HomeScreen() {
     }
   }, [loadFaq]);
 
-  const toggleTask = useCallback((id) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
+  // 체크리스트 완료 상태 토글 (PATCH)
+  const toggleTask = useCallback(async (id, currentDone) => {
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) return;
+
+      const res = await fetch(`${BASE}/checklist/${id}`, {
+        method: "PUT",   // ✅ 백엔드는 PUT 지원
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ is_done: !currentDone }),  // ✅ true / false 로 전송
+      });
+      if (!res.ok) throw new Error("체크 상태 변경 실패");
+
+      const updated = await res.json();
+
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, done: !!updated.is_done } : t
+        )
+      );
+    } catch (e) {
+      console.log("❌ toggleTask error", e);
+    }
   }, []);
 
   // 체크리스트 추가 (POST)
@@ -370,8 +392,9 @@ export default function HomeScreen() {
                 key={t.id}
                 style={[s.taskRow, idx !== tasks.length - 1 && s.taskDivider]}
               >
+                {/* ✅ currentDone 값 같이 넘겨줌 */}
                 <TouchableOpacity
-                  onPress={() => toggleTask(t.id)}
+                  onPress={() => toggleTask(t.id, t.done)}
                   activeOpacity={0.8}
                   style={{ flexDirection: "row", flex: 1, alignItems: "center" }}
                 >
@@ -422,9 +445,7 @@ export default function HomeScreen() {
                         placeholder="이름 또는 이메일 검색"
                         autoFocus
                       />
-                      <ScrollView
-                        style={{ maxHeight: 220, marginBottom: 8 }}
-                      >
+                      <ScrollView style={{ maxHeight: 220, marginBottom: 8 }}>
                         {shareUsers
                           .filter(
                             (u) =>
