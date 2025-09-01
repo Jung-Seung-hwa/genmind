@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import Constants from "expo-constants";
+
 const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ||
   (typeof window !== "undefined"
@@ -34,6 +36,21 @@ export default function FaqUploadPage() {
 
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
+
+  // ★ 로그인한 사용자(회사 도메인 사용) 로드
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw =
+          (await AsyncStorage.getItem("user")) ||
+          (await AsyncStorage.getItem("auth")) ||
+          (await AsyncStorage.getItem("profile"));
+        const u = raw ? JSON.parse(raw) : null;
+        setUser(u);
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     if (!dropRef.current) return;
@@ -121,6 +138,30 @@ export default function FaqUploadPage() {
     }
   }
 
+  // ★ /faq/commit 호출 유틸 (백엔드와 계약된 스키마)
+  async function commitFAQs({ baseUrl, comp_domain, qaList }) {
+    const payload = {
+      comp_domain,
+      items: qaList.map((x) => ({
+        qa_id: x.id ?? null,              // 수정건이면 id(qa_id) 전달, 신규면 null
+        question: String(x.q || "").trim(),
+        answer: String(x.a || "").trim(),
+        ref_article: x.ref_article ?? null,
+      })),
+    };
+
+    const res = await fetch(`${baseUrl}/faq/commit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${await AsyncStorage.getItem("access_token")}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`저장 실패 HTTP ${res.status}`);
+    return res.json(); // {ok, faq_ids, count}
+  }
+
   /** 저장 */
   async function handleSave() {
     if (!faqs.length) {
@@ -130,21 +171,21 @@ export default function FaqUploadPage() {
     setError(""); setOkMsg("");
     setStep("saving");
     try {
-      const res = await fetch(`${API_BASE}/faqs/bulk-save`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await AsyncStorage.getItem("access_token")}`,
-        },
-        body: JSON.stringify({
-          file_id: fileId, // ✅ 원래 파일명 그대로 전달
-          summary,
-          faqs: faqs.map((x) => ({ id: x.id, q: String(x.q || "").trim(), a: String(x.a || "").trim() })),
-        }),
+      // ★ 회사 도메인 결정 (없으면 안전값)
+      const compDomain =
+        user?.comp_domain ||
+        user?.company?.domain ||
+        "example.com";
+
+      // ★ /faq/commit 로 저장 + (백엔드에서) 임베딩/FAISS 업서트 트리거
+      const result = await commitFAQs({
+        baseUrl: API_BASE,
+        comp_domain: compDomain,
+        qaList: faqs, // 현재 편집한 리스트
       });
-      if (!res.ok) throw new Error(`저장 실패 HTTP ${res.status}`);
+
       setStep("done");
-      setOkMsg("DB에 저장되었습니다!");
+      setOkMsg(`DB 저장 완료! (${result.count}건). 임베딩/색인 작업을 시작했어요.`);
     } catch (e) {
       setError(e.message || "저장 중 오류가 발생했습니다.");
       setStep("review");
@@ -177,7 +218,7 @@ export default function FaqUploadPage() {
       </View>
 
       <ScrollView contentContainerStyle={st.container}>
-  <View style={[st.card, { maxWidth: 1400, minWidth: 1200, alignSelf: "center", width: "100%" }]}> 
+        <View style={[st.card, { maxWidth: 1400, minWidth: 1200, alignSelf: "center", width: "100%" }]}>
           <Text style={st.cardTitle}>문서 업로드</Text>
           <View
             ref={dropRef}
@@ -249,7 +290,7 @@ export default function FaqUploadPage() {
                   <View style={{ justifyContent: "flex-start", alignItems: "center", width: 32, marginRight: 4 }}>
                     <Text style={{ fontWeight: "800", color: "#0b347a", fontSize: 18 }}>{i + 1}</Text>
                   </View>
-                  <View style={[st.qaBox, { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" }]}> 
+                  <View style={[st.qaBox, { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" }]}>
                     <View style={{ gap: 6, flex: 1, minWidth: 180 }}>
                       <TextInput
                         style={st.input}
@@ -267,7 +308,7 @@ export default function FaqUploadPage() {
                         placeholder="답변을 입력하세요"
                       />
                     </View>
-                    <Pressable onPress={() => removeFaq(i)} style={[st.btnSm, st.btnSmGhost, { alignSelf: "flex-end", marginLeft: 8, marginTop: 0 }]}> 
+                    <Pressable onPress={() => removeFaq(i)} style={[st.btnSm, st.btnSmGhost, { alignSelf: "flex-end", marginLeft: 8, marginTop: 0 }]}>
                       <Text style={[st.btnSmTxt, { color: "#ef4444" }]}>삭제</Text>
                     </Pressable>
                   </View>
