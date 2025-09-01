@@ -66,7 +66,7 @@ export default function LoginScreen() {
       return;
     }
 
-    try {
+    try { 
       setIsLoading(true);
 
       const res = await fetchWithTimeout(
@@ -175,13 +175,6 @@ export default function LoginScreen() {
         {/* 카드 */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>로그인</Text>
-
-          <View style={styles.domainRow}>
-            <View style={styles.domainDot} />
-            <Text style={styles.domainText}>
-              {domain || "도메인을 입력하세요"}
-            </Text>
-          </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>이메일</Text>
