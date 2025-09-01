@@ -47,7 +47,7 @@ export default function AdminDashboardWeb() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const tenant = String(params?.tenant || "").trim();
-
+  const [fileList, setFileList] = useState([]);
   useFullCalendarCss();
 
   const [me, setMe] = useState(null);
@@ -128,7 +128,24 @@ export default function AdminDashboardWeb() {
     const f = e.target.files?.[0];
     if (f) handleFileSelected(f);
   }, []);
-
+useEffect(() => {
+  const fetchFiles = async () => {
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) return;
+      const res = await fetch(`${API_BASE}/faq/files`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("파일 목록 불러오기 실패");
+      const data = await res.json();
+      setFileList(data || []);
+    } catch (e) {
+      console.error("❌ 파일 목록 불러오기 실패:", e);
+      setFileList([]);
+    }
+  };
+  fetchFiles();
+}, []);
   // 파일 선택 → 분석 모달
   function handleFileSelected(file) {
     setSelectedFile(file);
@@ -314,27 +331,31 @@ export default function AdminDashboardWeb() {
               <Text style={styles.cardTitle}>업로드 된 문서 목록</Text>
               <View style={styles.tools}>
                 {["업로드일순", "처리상태", "크기"].map((t) => (
-                  <Pressable key={t} style={styles.link}><Text style={styles.linkText}>{t}</Text></Pressable>
+                  <Pressable key={t} style={styles.link}>
+                    <Text style={styles.linkText}>{t}</Text>
+                  </Pressable>
                 ))}
               </View>
             </View>
 
-            {[
-              { name: "사내규정.pdf", date: "2025-01-21", size: "12.5MB", status: <Pill type="green">승인</Pill> },
-              { name: "신입사원 교육자료.pdf", date: "2025-02-21", size: "590.2MB", status: <Pill type="green">승인</Pill> },
-              { name: "사용자 가이드.pdf", date: "2025-02-21", size: "970.6KB", status: <Pill type="red">실패</Pill> },
-            ].map((f, i) => (
-              <View key={i} style={[styles.row, styles.tableRow, { alignItems: "center" }]}>
-                <View style={[styles.col, { flex: 2 }]}><Text style={{ fontWeight: "700" }}>{f.name}</Text></View>
-                <View style={styles.col}><Text>{f.date}</Text></View>
-                <View style={styles.col}><Text>{f.size}</Text></View>
-                <View style={[styles.col, { minWidth: 80 }]}>{f.status}</View>
-                <View style={[styles.col, { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", minWidth: 120 }]}>
-                  <Pressable style={[styles.btnSm, styles.btnSmSolid]}><Text style={[styles.btnSmText, styles.btnSmTextSolid]}>다운로드</Text></Pressable>
-                  <Pressable style={[styles.btnSm, styles.btnSmGhost]}><Text style={[styles.btnSmText, styles.btnSmTextGhost]}>삭제</Text></Pressable>
+            {fileList.length > 0 ? (
+              fileList.map((f, i) => (
+                <View
+                  key={i}
+                  style={[styles.row, styles.tableRow, { alignItems: "center" }]}
+                >
+                  {/* 파일명만 출력 (중복 없이 comp_domain 기준) */}
+                  <View style={[styles.col, { flex: 2 }]}>
+                    <Text style={{ fontWeight: "700" }}>{f}</Text>
+                  </View>
+                  {/* 확장 필요 시 날짜, 크기, 상태 컬럼 추가 */}
                 </View>
-              </View>
-            ))}
+              ))
+            ) : (
+              <Text style={{ color: "#6b7280", marginTop: 12 }}>
+                업로드된 문서가 없습니다.
+              </Text>
+            )}
           </View>
         </View>
 

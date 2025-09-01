@@ -77,7 +77,7 @@ export default function FaqUploadPage() {
     const f = e.target.files?.[0];
     if (f) handleSelectedFile(f);
   }, []);
-
+  
   /** 파일 선택 후 전체 플로우 시작 */
   async function handleSelectedFile(f) {
     setError(""); setOkMsg("");
