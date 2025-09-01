@@ -21,6 +21,7 @@ class ChecklistUpdate(BaseModel):
     item: Optional[str] = None
     deadline: Optional[datetime] = None
     is_done: Optional[bool] = None
+    to_user: Optional[str] = None 
 
 class ChecklistOut(BaseModel):
     item_id: int
@@ -92,6 +93,8 @@ def update_checklist(
         checklist.deadline = payload.deadline
     if payload.is_done is not None:
         checklist.is_done = payload.is_done
+    if payload.to_user is not None:       # 👈 추가
+        checklist.to_user = payload.to_user
 
     db.commit()
     db.refresh(checklist)

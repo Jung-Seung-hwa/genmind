@@ -462,8 +462,8 @@ export default function HomeScreen() {
                               u.email.includes(shareSearch.trim())
                           )
                           .map((u) => (
-                            <View
-                              key={u.id}
+                            <TouchableOpacity
+                              key={u.email}
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
@@ -471,27 +471,41 @@ export default function HomeScreen() {
                                 borderBottomWidth: 1,
                                 borderBottomColor: "#f1f5f9",
                               }}
+                              onPress={async () => {
+                                try {
+                                  const token = await AsyncStorage.getItem("access_token");
+                                  if (!token) return;
+                                  const res = await fetch(`${BASE}/checklist/${shareTaskId}`, {
+                                    method: "PUT",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ to_user: u.email }),
+                                  });
+                                  if (!res.ok) throw new Error("공유 실패");
+                                  const updated = await res.json();
+
+                                  // 상태 업데이트 (tasks 반영)
+                                  setTasks((prev) =>
+                                    prev.map((t) =>
+                                      t.id === shareTaskId ? { ...t, due: `to: ${u.email}` } : t
+                                    )
+                                  );
+
+                                  setShowShareModal(false);
+                                } catch (e) {
+                                  console.log("❌ 공유 실패", e);
+                                }
+                              }}
                             >
                               <View style={{ flex: 1 }}>
-                                <Text
-                                  style={{
-                                    fontWeight: "700",
-                                    color: "#1f2a44",
-                                    fontSize: 15,
-                                  }}
-                                >
+                                <Text style={{ fontWeight: "700", color: "#1f2a44", fontSize: 15 }}>
                                   {u.name}
                                 </Text>
-                                <Text
-                                  style={{
-                                    color: "#64748b",
-                                    fontSize: 13,
-                                  }}
-                                >
-                                  {u.email}
-                                </Text>
+                                <Text style={{ color: "#64748b", fontSize: 13 }}>{u.email}</Text>
                               </View>
-                            </View>
+                            </TouchableOpacity>
                           ))}
                       </ScrollView>
                       <View style={s.modalBtnRow}>
