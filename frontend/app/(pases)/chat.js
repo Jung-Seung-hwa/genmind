@@ -3,7 +3,6 @@ import { Keyboard, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput
          KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Modal } from "react-native";
-import robotImg from "../images/robot_sample.jpg";
 import { Image } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
@@ -234,48 +233,6 @@ export default function ChatScreen() {
           />
         </View>
 
-        {/* 이미지 팝업 버튼 예시 */}
-        <TouchableOpacity onPress={() => setShowImageModal(true)} style={{ alignSelf: "center", margin: 16 }}>
-          <Text style={{ color: "#2563eb" }}>로봇 이미지 보기</Text>
-        </TouchableOpacity>
-
-        {/* 이미지 모달 */}
-        <Modal visible={showImageModal} transparent animationType="fade" onRequestClose={() => setShowImageModal(false)}>
-          <View style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.9)",
-            alignItems: "center",
-            justifyContent: "center"
-          }}>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => setShowImageModal(false)}
-              style={{
-                width: "100%",
-                height: "100%",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              <Image
-                source={robotImg}
-                style={{ width: "100%", height: "100%", resizeMode: "contain" }}
-              />
-              <Text style={{
-                position: "absolute",
-                top: 40,
-                right: 30,
-                color: "#fff",
-                fontWeight: "700",
-                fontSize: 20,
-                backgroundColor: "rgba(0,0,0,0.4)",
-                padding: 8,
-                borderRadius: 8
-              }}>닫기</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-
         {/* Input bar */}
         <View style={styles.inputBar}>
           <TextInput
@@ -332,6 +289,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e2e8f0",
     backgroundColor: "#fff",
+    marginBottom: Platform.OS === "ios" || Platform.OS === "android" ? 28 : 0,
   },
   input: {
     flex: 1,

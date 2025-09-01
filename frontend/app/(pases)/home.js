@@ -36,7 +36,6 @@ const deriveLanBase = () => {
   }
   return "http://localhost:8000"; // fallback
 };
-
 const BASE = deriveLanBase();
 
 export default function HomeScreen() {
@@ -46,7 +45,10 @@ export default function HomeScreen() {
     const fetchMe = async () => {
       try {
         const token = await AsyncStorage.getItem("access_token");
-        if (!token) return;
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
         const res = await fetch(`${BASE}/auth/me`, {
           method: "GET",
           headers: {
@@ -60,6 +62,7 @@ export default function HomeScreen() {
         setUser(me);
       } catch (e) {
         setUser(null);
+        router.replace("/login");
       }
     };
     fetchMe();
@@ -230,7 +233,6 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // 공유 모달 상태
