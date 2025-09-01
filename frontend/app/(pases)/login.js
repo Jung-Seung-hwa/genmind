@@ -167,9 +167,7 @@ export default function LoginScreen() {
           />
           <Text style={styles.appTitle}>Genmind Chatbot</Text>
           <Text style={styles.appSubtitle}>중소기업 맞춤 자동응답 서비스</Text>
-          <Text style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
-            {BASE_URL}
-          </Text>
+
         </View>
 
         {/* 카드 */}
