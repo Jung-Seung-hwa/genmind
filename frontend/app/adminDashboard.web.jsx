@@ -348,6 +348,25 @@ useEffect(() => {
                   <View style={[styles.col, { flex: 2 }]}>
                     <Text style={{ fontWeight: "700" }}>{f}</Text>
                   </View>
+                  <Pressable
+                    style={[styles.btnSm, styles.btnSmGhost, { marginLeft: 8 }]}
+                    onClick={async () => {
+                      if (!window.confirm('정말 삭제하시겠습니까?')) return;
+                      try {
+                        const token = await AsyncStorage.getItem("access_token");
+                        const res = await fetch(`${API_BASE}/faq/files/${encodeURIComponent(f)}`, {
+                          method: "DELETE",
+                          headers: { Authorization: `Bearer ${token}` },
+                        });
+                        if (!res.ok) throw new Error("삭제 실패");
+                        setFileList((prev) => prev.filter((name) => name !== f));
+                      } catch (e) {
+                        alert("삭제 중 오류 발생: " + (e.message || e));
+                      }
+                    }}
+                  >
+                    <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "700" }}>삭제</Text>
+                  </Pressable>
                   {/* 확장 필요 시 날짜, 크기, 상태 컬럼 추가 */}
                 </View>
               ))
