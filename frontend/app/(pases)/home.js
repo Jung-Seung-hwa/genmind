@@ -313,7 +313,7 @@ export default function HomeScreen() {
                   <View
                     style={{
                       position: 'absolute',
-                      top: 110,
+                      top: 50,
                       right: 18,
                       minWidth: 160,
                       backgroundColor: '#fff',

@@ -243,26 +243,36 @@ export default function ChatScreen() {
         <Modal visible={showImageModal} transparent animationType="fade" onRequestClose={() => setShowImageModal(false)}>
           <View style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
+            backgroundColor: "rgba(0,0,0,0.9)",
             alignItems: "center",
             justifyContent: "center"
           }}>
-            <View style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              padding: 16,
-              alignItems: "center",
-              maxWidth: "90%",
-              maxHeight: "80%"
-            }}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => setShowImageModal(false)}
+              style={{
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
               <Image
                 source={robotImg}
-                style={{ width: 300, height: 300, resizeMode: "contain" }}
+                style={{ width: "100%", height: "100%", resizeMode: "contain" }}
               />
-              <TouchableOpacity onPress={() => setShowImageModal(false)} style={{ marginTop: 16 }}>
-                <Text style={{ color: "#2563eb", fontWeight: "700" }}>닫기</Text>
-              </TouchableOpacity>
-            </View>
+              <Text style={{
+                position: "absolute",
+                top: 40,
+                right: 30,
+                color: "#fff",
+                fontWeight: "700",
+                fontSize: 20,
+                backgroundColor: "rgba(0,0,0,0.4)",
+                padding: 8,
+                borderRadius: 8
+              }}>닫기</Text>
+            </TouchableOpacity>
           </View>
         </Modal>
 
