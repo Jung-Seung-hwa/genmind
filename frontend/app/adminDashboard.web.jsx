@@ -48,6 +48,9 @@ export default function AdminDashboardWeb() {
   const params = useLocalSearchParams();
   const tenant = String(params?.tenant || "").trim();
   const [fileList, setFileList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(fileList.length / pageSize);
   useFullCalendarCss();
 
   const [me, setMe] = useState(null);
@@ -128,24 +131,26 @@ export default function AdminDashboardWeb() {
     const f = e.target.files?.[0];
     if (f) handleFileSelected(f);
   }, []);
-useEffect(() => {
-  const fetchFiles = async () => {
-    try {
-      const token = await AsyncStorage.getItem("access_token");
-      if (!token) return;
-      const res = await fetch(`${API_BASE}/faq/files`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("파일 목록 불러오기 실패");
-      const data = await res.json();
-      setFileList(data || []);
-    } catch (e) {
-      console.error("❌ 파일 목록 불러오기 실패:", e);
-      setFileList([]);
-    }
-  };
-  fetchFiles();
-}, []);
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) return;
+        const res = await fetch(`${API_BASE}/faq/files`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("파일 목록 불러오기 실패");
+        const data = await res.json();
+        setFileList(data || []);
+        setCurrentPage(1); // 목록 새로고침 시 1페이지로
+      } catch (e) {
+        console.error("❌ 파일 목록 불러오기 실패:", e);
+        setFileList([]);
+        setCurrentPage(1);
+      }
+    };
+    fetchFiles();
+  }, []);
   // 파일 선택 → 분석 모달
   function handleFileSelected(file) {
     setSelectedFile(file);
@@ -324,9 +329,9 @@ useEffect(() => {
             </View>
           </View>
 
-          {/* 업로드 된 문서 목록 */}
+          {/* 업로드 된 문서 목록 (페이징 적용) */}
           <View style={styles.card}>
-            <View style={[styles.cardHead, { alignItems: "center" }]}>
+            <View style={[styles.cardHead, { alignItems: "center" }]}> 
               <Text style={styles.em}>📄</Text>
               <Text style={styles.cardTitle}>업로드 된 문서 목록</Text>
               <View style={styles.tools}>
@@ -339,37 +344,64 @@ useEffect(() => {
             </View>
 
             {fileList.length > 0 ? (
-              fileList.map((f, i) => (
-                <View
-                  key={i}
-                  style={[styles.row, styles.tableRow, { alignItems: "center" }]}
-                >
-                  {/* 파일명만 출력 (중복 없이 comp_domain 기준) */}
-                  <View style={[styles.col, { flex: 2 }]}>
-                    <Text style={{ fontWeight: "700" }}>{f}</Text>
-                  </View>
-                  <Pressable
-                    style={[styles.btnSm, styles.btnSmGhost, { marginLeft: 8 }]}
-                    onClick={async () => {
-                      if (!window.confirm('정말 삭제하시겠습니까?')) return;
-                      try {
-                        const token = await AsyncStorage.getItem("access_token");
-                        const res = await fetch(`${API_BASE}/faq/files/${encodeURIComponent(f)}`, {
-                          method: "DELETE",
-                          headers: { Authorization: `Bearer ${token}` },
-                        });
-                        if (!res.ok) throw new Error("삭제 실패");
-                        setFileList((prev) => prev.filter((name) => name !== f));
-                      } catch (e) {
-                        alert("삭제 중 오류 발생: " + (e.message || e));
-                      }
-                    }}
+              <>
+                {fileList.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((f, i) => (
+                  <View
+                    key={i + (currentPage - 1) * pageSize}
+                    style={[styles.row, styles.tableRow, { alignItems: "center" }]}
                   >
-                    <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "700" }}>삭제</Text>
+                    <View style={[styles.col, { flex: 2 }]}> 
+                      <Text style={{ fontWeight: "700" }}>{f}</Text>
+                    </View>
+                    <Pressable
+                      style={[styles.btnSm, styles.btnSmGhost, { marginLeft: 8 }]}
+                      onClick={async () => {
+                        if (!window.confirm('정말 삭제하시겠습니까?')) return;
+                        try {
+                          const token = await AsyncStorage.getItem("access_token");
+                          const res = await fetch(`${API_BASE}/faq/files/${encodeURIComponent(f)}`, {
+                            method: "DELETE",
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          if (!res.ok) throw new Error("삭제 실패");
+                          setFileList((prev) => prev.filter((name) => name !== f));
+                        } catch (e) {
+                          alert("삭제 중 오류 발생: " + (e.message || e));
+                        }
+                      }}
+                    >
+                      <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "700" }}>삭제</Text>
+                    </Pressable>
+                  </View>
+                ))}
+
+                {/* 페이지네이션 */}
+                <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 16 }}>
+                  <Pressable
+                    style={[styles.btnSm, styles.btnSmGhost, { opacity: currentPage === 1 ? 0.5 : 1 }]}
+                    disabled={currentPage === 1}
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    <Text style={styles.btnSmText}>이전</Text>
                   </Pressable>
-                  {/* 확장 필요 시 날짜, 크기, 상태 컬럼 추가 */}
+                  {Array.from({ length: totalPages }, (_, idx) => (
+                    <Pressable
+                      key={idx + 1}
+                      style={[styles.btnSm, idx + 1 === currentPage ? styles.btnSmSolid : styles.btnSmGhost]}
+                      onPress={() => setCurrentPage(idx + 1)}
+                    >
+                      <Text style={idx + 1 === currentPage ? styles.btnSmTextSolid : styles.btnSmTextGhost}>{idx + 1}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={[styles.btnSm, styles.btnSmGhost, { opacity: currentPage === totalPages ? 0.5 : 1 }]}
+                    disabled={currentPage === totalPages}
+                    onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <Text style={styles.btnSmText}>다음</Text>
+                  </Pressable>
                 </View>
-              ))
+              </>
             ) : (
               <Text style={{ color: "#6b7280", marginTop: 12 }}>
                 업로드된 문서가 없습니다.
