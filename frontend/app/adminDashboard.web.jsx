@@ -355,7 +355,7 @@ export default function AdminDashboardWeb() {
                     </View>
                     <Pressable
                       style={[styles.btnSm, styles.btnSmGhost, { marginLeft: 8 }]}
-                      onClick={async () => {
+                      onPress={async () => {
                         if (!window.confirm('정말 삭제하시겠습니까?')) return;
                         try {
                           const token = await AsyncStorage.getItem("access_token");

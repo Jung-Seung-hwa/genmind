@@ -1,10 +1,11 @@
 # backend/api/faq.py
-from fastapi import APIRouter, Body, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Body, BackgroundTasks, Depends, HTTPException, Path
 import fitz  # PyMuPDF
 import openai
 import os
 import glob
 from typing import List, Optional
+import shutil
 
 # === DB / 모델 ===
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from models.company import Company  # ✅ 옵션 A 검증용
 # === 벡터 인덱스 업서트 (배치 유틸 재사용) ===
 #   backend/db/ingest_faq_to_faiss.py 에 정의됨
 from db.ingest_faq_to_faiss import upsert_faqs_to_faiss
+from db.ingest_faq_to_faiss import rebuild_faiss_index
 
 # === OpenAI 설정 ===
 openai_api_key = os.getenv("OPENAI_API_KEY", "sk-...YOUR_KEY...")
@@ -196,3 +198,29 @@ def commit_faqs(payload: FAQCommitIn, bg: BackgroundTasks, db: Session = Depends
     bg.add_task(upsert_faqs_to_faiss, comp_domain, faq_ids)
 
     return {"ok": True, "faq_ids": faq_ids, "count": len(faq_ids)}
+@router.delete("/faq/files/{filename}")
+def delete_faq_file(
+    filename: str = Path(..., description="삭제할 파일명"),
+    db: Session = Depends(get_db),
+):
+    # 1) DB에서 해당 파일 관련 FAQ 삭제
+    print("🗑️ DELETE 요청 filename =", filename)
+    rows = db.query(CompFAQ).filter(CompFAQ.sc_file == filename).all()
+    print("🗑️ DB 조회된 rows =", len(rows))
+    if not rows:
+        raise HTTPException(status_code=404, detail="해당 파일 관련 FAQ 없음")
+    for row in rows:
+        db.delete(row)
+    db.commit()
+
+    # 2) 업로드된 파일 삭제
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    # 3) FAISS 인덱스 재빌드 (안전하게 전체 리빌드)
+    rebuild_faiss_index(db)
+    
+    
+
+    return {"ok": True, "deleted_count": len(rows)}

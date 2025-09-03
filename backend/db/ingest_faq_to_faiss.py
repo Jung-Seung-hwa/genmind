@@ -176,6 +176,24 @@ def upsert_faqs_to_faiss(comp_domain: Optional[str],
     _save_vs(vs)
     return len(texts)
 
+def rebuild_faiss_index(db: Session):
+    """
+    DB 전체 CompFAQ를 다시 임베딩해서 FAISS 인덱스를 새로 만듦.
+    """
+    faqs = db.query(CompFAQ).all()
+    if not faqs:
+        return
+
+    vstore_dir = get_vstore_dir()
+    if os.path.exists(vstore_dir):
+        import shutil
+        shutil.rmtree(vstore_dir)  # 디렉토리 전체 삭제
+
+    # ✅ 완전 새로 만들기
+    texts, metas, ids = build_texts_metas_ids(faqs)
+    emb = get_embeddings()
+    vs = FAISS.from_texts(texts=texts, metadatas=metas, embedding=emb, ids=ids)
+    _save_vs(vs)
 # ---------------------------------------------------------------------
 # CLI entry
 # ---------------------------------------------------------------------
