@@ -189,6 +189,8 @@ export default function FaqUploadPage() {
 
       setStep("done");
       setOkMsg(`DB 저장 완료! (${result.count}건). 임베딩/색인 작업을 시작했어요.`);
+            // ✅ 저장 성공 후 adminDashboard로 이동
+      router.replace("/adminDashboard");
     } catch (e) {
       setError(e.message || "저장 중 오류가 발생했습니다.");
       setStep("review");
@@ -221,44 +223,54 @@ export default function FaqUploadPage() {
       </View>
 
       <ScrollView contentContainerStyle={st.container}>
-        <View style={[st.card, { maxWidth: 1400, minWidth: 1200, alignSelf: "center", width: "100%" }]}>
-          <Text style={st.cardTitle}>문서 업로드</Text>
-          <View
-            ref={dropRef}
-            style={[
-              st.drop,
-              dragActive && { borderColor: "#3b82f6", backgroundColor: "#eff6ff" },
-            ]}
-            tabIndex={0}
-          >
-            <Text style={st.arrow}>⬆</Text>
-            <Text style={st.dropTitle}>파일을 여기에 드래그하세요.</Text>
-            <Text style={st.dropSub}>PDF, Excel, Word 등 업로드 가능합니다.</Text>
-
-            {file && (
-              <Text style={{ color: "#2563eb", marginTop: 8, fontWeight: "700" }}>
-                선택된 파일: {file.name}
-              </Text>
-            )}
-
-            <Pressable onPress={clickChoose} style={[st.btnDark, { marginTop: 10 }]}>
-              <Text style={st.btnDarkTxt}>파일 업로드</Text>
+        <View style={st.container}> {/* 문서 업로드 박스 바로 위로 이동 */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}> 
+            <Pressable
+              onPress={() => router.replace("/adminDashboard")}
+              style={[st.btnGhost, { paddingVertical: 8, paddingHorizontal: 14 }]}
+            >
+              <Text style={st.btnGhostTxt}>← 뒤로가기</Text>
             </Pressable>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
-              style={{ display: "none" }}
-              onChange={onInputChange}
-            />
           </View>
+          <View style={[st.card, { maxWidth: 1400, minWidth: 1200, alignSelf: "center", width: "100%" }]}>
+            <Text style={st.cardTitle}>문서 업로드</Text>
+            <View
+              ref={dropRef}
+              style={[
+                st.drop,
+                dragActive && { borderColor: "#3b82f6", backgroundColor: "#eff6ff" },
+              ]}
+              tabIndex={0}
+            >
+              <Text style={st.arrow}>⬆</Text>
+              <Text style={st.dropTitle}>파일을 여기에 드래그하세요.</Text>
+              <Text style={st.dropSub}>PDF, Excel, Word 등 업로드 가능합니다.</Text>
 
-          {/* 상태 표시 */}
-          <View style={{ marginTop: 12 }}>
-            {step === "uploading" && <Text style={st.info}>업로드 중…</Text>}
-            {step === "extracting" && <Text style={st.info}>FAQ 추출 중…</Text>}
-            {okMsg ? <Text style={st.ok}>{okMsg}</Text> : null}
-            {error ? <Text style={st.err}>{error}</Text> : null}
+              {file && (
+                <Text style={{ color: "#2563eb", marginTop: 8, fontWeight: "700" }}>
+                  선택된 파일: {file.name}
+                </Text>
+              )}
+
+              <Pressable onPress={clickChoose} style={[st.btnDark, { marginTop: 10 }]}>
+                <Text style={st.btnDarkTxt}>파일 업로드</Text>
+              </Pressable>
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                style={{ display: "none" }}
+                onChange={onInputChange}
+              />
+            </View>
+
+            {/* 상태 표시 */}
+            <View style={{ marginTop: 12 }}>
+              {step === "uploading" && <Text style={st.info}>업로드 중…</Text>}
+              {step === "extracting" && <Text style={st.info}>FAQ 추출 중…</Text>}
+              {okMsg ? <Text style={st.ok}>{okMsg}</Text> : null}
+              {error ? <Text style={st.err}>{error}</Text> : null}
+            </View>
           </View>
         </View>
 
